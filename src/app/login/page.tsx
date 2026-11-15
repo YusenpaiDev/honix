@@ -26,6 +26,13 @@ export default function Login() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+  /* Tombol "Coba gratis" di landing → /login?mode=daftar langsung buka tab Daftar. */
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("mode") !== "daftar") return;
+    const t = setTimeout(() => setMode("signup"), 0);
+    return () => clearTimeout(t);
+  }, []);
+
   /* Habis hapus akun dari Pengaturan → /login?pesan=akun-dihapus. */
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get("pesan") !== "akun-dihapus") return;
@@ -276,7 +283,7 @@ export default function Login() {
                     onChange={e => setAgreed(e.target.checked)}
                   />
                   <span>
-                    Setuju dengan <a href="/syarat" target="_blank" rel="noopener">Syarat</a> &amp;{" "}
+                    Setuju dengan <a href="/terms-and-conditions" target="_blank" rel="noopener">Syarat</a> &amp;{" "}
                     <a href="/privasi" target="_blank" rel="noopener">Privasi</a>
                   </span>
                 </label>
@@ -305,7 +312,7 @@ export default function Login() {
           <footer className="lg-footer">
             <span>© 2026 Honix JLPT</span>
             <span className="lg-footer-sep">·</span>
-            <a href="/syarat">Syarat</a>
+            <a href="/terms-and-conditions">Syarat</a>
             <a href="/privasi">Privasi</a>
             <a href="mailto:yusufnashirsyarifuddin@gmail.com">Bantuan</a>
           </footer>

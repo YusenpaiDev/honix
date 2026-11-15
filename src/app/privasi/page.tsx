@@ -86,7 +86,7 @@ export default function KebijakanPrivasi() {
       judul="Kebijakan Privasi" jp="個人情報"
       ringkas={<p>Singkatnya: kami simpan data akun, progres belajar, dan transaksi supaya aplikasinya jalan. Tanpa iklan dan tanpa pelacak. Pertanyaan ke chat Sensei diproses AI Anthropic. Mau hapus akun? Email kami.</p>}
       bagian={BAGIAN}
-      lain={{ href: "/syarat", label: "Syarat & Ketentuan" }}
+      lain={{ href: "/terms-and-conditions", label: "Syarat & Ketentuan" }}
     />
   );
 }

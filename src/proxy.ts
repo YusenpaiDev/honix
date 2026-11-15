@@ -45,8 +45,17 @@ export async function proxy(request: NextRequest) {
      pakai tanda tangan SHA512 di route handler-nya. */
   /* /privasi & /syarat juga publik: harus bisa dibaca sebelum daftar & bayar,
      dan oleh akun yang trial-nya habis. */
-  const publicPaths = ["/login", "/premium", "/auth", "/api/payment/webhook", "/privasi", "/syarat"];
+  /* Landing, halaman legal, & file PWA juga publik (handoff landing §0, §10). */
+  const publicPaths = ["/login", "/premium", "/auth", "/api/payment/webhook", "/privasi", "/syarat",
+    "/terms-and-conditions", "/refund-policy", "/landing", "/manifest.webmanifest", "/sw.js", "/icons", "/og-1200x630.png"];
   const isPublic = publicPaths.some(p => request.nextUrl.pathname.startsWith(p));
+
+  /* Halaman depan: belum login → landing (URL tetap "/"). Udah login → Beranda kayak biasa. */
+  if (!user && request.nextUrl.pathname === "/") {
+    const response = NextResponse.rewrite(new URL("/landing/index.html", request.url));
+    supabaseResponse.cookies.getAll().forEach(cookie => response.cookies.set(cookie));
+    return response;
+  }
 
   if (!user && !isPublic) {
     const url = request.nextUrl.clone();
