@@ -1,6 +1,7 @@
 "use client";
 
 import { KunciHalaman } from "@/components/premium/Gembok";
+import { judulSet } from "@/lib/judul-set";
 
 import { assertProgressSaved, createSaveQueue } from "@/lib/save-progress";
 
@@ -817,7 +818,7 @@ function ResultView({ onReset, result, setResult, chatMsgs, setChatMsgs, isSaved
         user_id: user.id,
         judul: newNoteText.trim().split("\n")[0].slice(0, 60) || "Catatan",
         isi: newNoteText.trim(),
-        source: result.title,
+        source: judulSet(result.title),
       }).select("id, judul, isi, updated_at").single();
       if (error) throw error;
       setCatatanList(prev => [data as {id:string;judul:string;isi:string;updated_at:string}, ...prev]);
@@ -1035,7 +1036,7 @@ function ResultView({ onReset, result, setResult, chatMsgs, setChatMsgs, isSaved
         user_id: user.id,
         judul,
         isi,
-        source: result.title,
+        source: judulSet(result.title),
       });
       if (error) throw error;
       setSavedNotes(prev => new Set([...prev, qi]));
@@ -1233,7 +1234,7 @@ function ResultView({ onReset, result, setResult, chatMsgs, setChatMsgs, isSaved
         body: JSON.stringify({
           message: msg,
           context: result ? {
-            title: result.title,
+            title: judulSet(result.title),
             questions: [result.questions[chatQuestionRef.current]].filter(Boolean),
           } : null,
           history: chatMsgs.filter(m => !m.kuota && !m.kuotaHabis).slice(-8).map(m => ({ role: m.role, text: m.text.slice(0, 2000) })),
@@ -1279,7 +1280,7 @@ function ResultView({ onReset, result, setResult, chatMsgs, setChatMsgs, isSaved
         <header className="af-topbar">
           <div className="af-title-block">
             <h1 className="af-title">
-              <span className="af-title-jp">{result.title}</span>
+              <span className="af-title-jp">{judulSet(result.title)}</span>
             </h1>
             <div className="af-meta-row">
               <span className="meta-chip">

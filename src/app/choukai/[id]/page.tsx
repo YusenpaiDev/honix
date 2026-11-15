@@ -1,6 +1,7 @@
 "use client";
 
 import { KunciHalaman } from "@/components/premium/Gembok";
+import { judulSet } from "@/lib/judul-set";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
@@ -471,7 +472,7 @@ function ChoukaiPlayerIsi() {
             <Breadcrumb items={[
               { label: "Beranda", href: "/" },
               { label: "Choukai", href: "/choukai" },
-              { label: session.title || "Sesi" },
+              { label: judulSet(session.title) || "Sesi" },
             ]} />
             <h1 className="ch-title">
               Choukai <span className="ch-title-jp">聴解</span>

@@ -1,6 +1,7 @@
 "use client";
 
 import { loadSessionPages } from "@/lib/session-data";
+import { judulSet } from "@/lib/judul-set";
 
 import { activityAt, hasPracticeDate, answeredCount, correctCount, dailyActivity, recentPractice } from "@/lib/session-progress";
 
@@ -74,10 +75,9 @@ const TYPE_META: Record<SType, { icon: string; tag: string; ic: string; tt: stri
   foto:    { icon: "📷", tag: "ANALISIS FOTO", ic: "pr-ic-foto", tt: "pr-tt-foto" },
 };
 function tone(pct: number) { return pct >= 75 ? "good" : pct >= 65 ? "mid" : "bad"; }
-/** Judul singkat: buang prefix "JLPT ... 過去問" dst, sisain 年月 kalau ada. */
+/** Judul singkat — tanpa nama sesi ujian asli (lihat judul-set.ts). */
 function shortTitle(t: string): string {
-  const m = t.match(/(20\d{2})\s*年\s*(\d{1,2})\s*月/);
-  return m ? `${m[1]}年${m[2]}月` : t.replace(/^JLPT\s*/i, "").slice(0, 28);
+  return judulSet(t).slice(0, 32);
 }
 
 export default function ProgresPage() {

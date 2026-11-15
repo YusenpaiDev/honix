@@ -1,6 +1,7 @@
 "use client";
 
 import { loadSessionPages } from "@/lib/session-data";
+import { judulSet } from "@/lib/judul-set";
 
 import { activityAt, hasPracticeDate, answeredCount, accuracyPercent, dailyActivity, recentPractice } from "@/lib/session-progress";
 
@@ -545,7 +546,7 @@ export default function Home() {
                 <Link href={resumeHref} className="bv-resume">
                   <div className="res-ic">{resume.section === "choukai" ? "🎧" : "✍️"}</div>
                   <div className="res-m">
-                    <div className="res-t">Lanjutin: <span className="jpt">{resume.title}</span> — {jenisSesi(resume)}</div>
+                    <div className="res-t">Lanjutin: <span className="jpt">{judulSet(resume.title)}</span> — {jenisSesi(resume)}</div>
                     <ResumeSub s={resume} />
                   </div>
                   <span className="btn btn-p">▶ Lanjutin</span>
@@ -674,7 +675,7 @@ export default function Home() {
                       return (
                         <Link key={s.id} href={s.section === "choukai" ? `/choukai/${s.id}` : `/analisis-foto?session=${s.id}`} className="riw-i">
                           <span className="riw-g" style={{ background: st.bg, borderColor: st.bd, color: st.fg }}>{st.g}</span>
-                          <div className="riw-m"><div className="riw-t">{s.title}</div><div className="riw-s">{hasPracticeDate(s) ? relativeTime(activityAt(s)) : "Waktu latihan belum tercatat"} · {answeredCount(s)}/{s.total} soal dibahas{s.score == null ? " · sedang dikerjakan" : ""}</div></div>
+                          <div className="riw-m"><div className="riw-t">{judulSet(s.title)}</div><div className="riw-s">{hasPracticeDate(s) ? relativeTime(activityAt(s)) : "Waktu latihan belum tercatat"} · {answeredCount(s)}/{s.total} soal dibahas{s.score == null ? " · sedang dikerjakan" : ""}</div></div>
                           {pct != null && <span className={`riw-sc ${pct >= 80 ? "sc-g" : "sc-m"}`}>{pct}%</span>}
                         </Link>
                       );
