@@ -21,6 +21,7 @@ const nextConfig: NextConfig = {
     return [
       { source: "/terms-and-conditions", destination: "/landing/terms-and-conditions.html" },
       { source: "/refund-policy", destination: "/landing/refund-policy.html" },
+      { source: "/kontak", destination: "/landing/kontak.html" },
     ];
   },
 };
