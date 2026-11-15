@@ -1,6 +1,7 @@
 "use client";
 
 import { useTerkunci } from "@/components/premium/Gembok";
+import { judulSet } from "@/lib/judul-set";
 import { bukaPremium } from "@/lib/akses-premium";
 
 import { HonixEmpty } from "@/components/honix/HonixEmpty";
@@ -370,7 +371,7 @@ export default function CatatanPage() {
                     </span>
                     {detail?.source && !addMode && (
                       <span style={{ fontSize: 10.5, color: "var(--text-tertiary)", padding: "2px 8px", background: "var(--surface-2)", borderRadius: 5 }}>
-                        dari: {detail.source}
+                        dari: {judulSet(detail.source)}
                       </span>
                     )}
                   </div>

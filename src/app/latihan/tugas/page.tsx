@@ -1,6 +1,7 @@
 "use client";
 
 import { useTerkunci } from "@/components/premium/Gembok";
+import { judulSet } from "@/lib/judul-set";
 import { bukaPremium } from "@/lib/akses-premium";
 
 import { useEffect, useMemo, useState } from "react";
@@ -836,7 +837,7 @@ function RiwayatDrawer({
                         <div className="drawer-item-title">
                           <span className="font-jp-sans">{r.category}</span>
                           <span style={{ color: "var(--text-tertiary)", margin: "0 6px" }}>·</span>
-                          {r.title}
+                          {judulSet(r.title)}
                         </div>
                         <div className="drawer-item-sub">{relativeDate(r.created_at)} · {r.total} soal</div>
                       </div>
