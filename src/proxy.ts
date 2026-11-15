@@ -47,7 +47,7 @@ export async function proxy(request: NextRequest) {
      dan oleh akun yang trial-nya habis. */
   /* Landing, halaman legal, & file PWA juga publik (handoff landing §0, §10). */
   const publicPaths = ["/login", "/premium", "/auth", "/api/payment/webhook", "/privasi", "/syarat",
-    "/terms-and-conditions", "/refund-policy", "/landing", "/manifest.webmanifest", "/sw.js", "/icons", "/og-1200x630.png"];
+    "/terms-and-conditions", "/refund-policy", "/kontak", "/landing", "/manifest.webmanifest", "/sw.js", "/icons", "/og-1200x630.png"];
   const isPublic = publicPaths.some(p => request.nextUrl.pathname.startsWith(p));
 
   /* Halaman depan: belum login → landing (URL tetap "/"). Udah login → Beranda kayak biasa. */
