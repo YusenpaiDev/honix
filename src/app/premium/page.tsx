@@ -147,15 +147,12 @@ const COMPARE: GrupBanding[] = [
   ] },
 ];
 
-/* ⚠️ KONTAK: ganti KONTAK_SUPPORT di bawah sama email/WA yang beneran kamu
-   pegang sebelum halaman ini dipakai jualan. FAQ lama nyebut
-   support@senseijlpt.id — kalau alamat itu gak ada, orang yang mau berhenti
-   atau komplain gak punya jalan sama sekali. */
-const KONTAK_SUPPORT = "GANTI_INI@email-kamu.com";
+/* Kontak resmi — diteruskan ke email owner (ImprovMX). Sama kayak di landing & halaman legal. */
+const KONTAK_SUPPORT = "support@honixjlpt.com";
 
 const FAQ = [
   { q: "Gimana cara bayarnya?",
-    a: `Sekarang masih manual: hubungi ${KONTAK_SUPPORT}, transfer, terus akses Pro-nya diaktifin. Pembayaran otomatis (kartu, GoPay, QRIS) lagi disiapin.` },
+    a: `Lewat Midtrans: QRIS, e-wallet, transfer virtual account, atau kartu. Pro aktif otomatis begitu pembayaran dikonfirmasi. Ada kendala? Kirim email ke ${KONTAK_SUPPORT}.` },
   { q: "Bisa berhenti kapan saja?",
     a: "Bisa. Pro itu bulanan — kalau gak diperpanjang, akses Pro berhenti di akhir periode dan akses belajar berakhir. Gak ada ikatan." },
   { q: "Kalau langganan habis, kotoba & catatan saya hilang?",
