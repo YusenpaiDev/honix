@@ -171,6 +171,16 @@ const fmt = (n: number) => "Rp " + n.toLocaleString("id-ID");
 export default function Premium() {
   /* Default Paket Ujian (HANDOFF-kurikulum §3): kurikulumnya nempel di paket ini. */
   const [cycle, setCycle] = useState<Cycle>("yearly");
+  /* Dari kartu harga landing: /premium?paket=ujian|bulanan|lifetime → pilihan yang sama kebuka. */
+  useEffect(() => {
+    const paket = new URLSearchParams(window.location.search).get("paket");
+    const t = setTimeout(() => {
+      if (paket === "bulanan") setCycle("monthly");
+      else if (paket === "ujian") setCycle("yearly");
+      if (paket) document.querySelector(paket === "lifetime" ? ".pr-plan.plan-gold" : ".pr-plan.popular")?.scrollIntoView({ block: "center" });
+    }, 0);
+    return () => clearTimeout(t);
+  }, []);
   const [userInitial, setUserInitial] = useState("Y");
   const stats = useUserStats();
   /* Streak dari useUserStats → streak_saya(). Sebelumnya tiap halaman baca
@@ -323,7 +333,7 @@ export default function Premium() {
           <div className="pr-cta-content">
             <h2>Mulai Pro hari ini.</h2>
             <p>Gak diperpanjang otomatis. Tanpa tagihan otomatis. Tanpa hidden cost.</p>
-            <p className="pr-legal">Dengan membayar, kamu setuju dengan <Link href="/syarat">Syarat &amp; Ketentuan</Link> (termasuk pengembalian dana) dan <Link href="/privasi">Kebijakan Privasi</Link>.</p>
+            <p className="pr-legal">Dengan membayar, kamu setuju dengan <Link href="/terms-and-conditions">Syarat &amp; Ketentuan</Link> (termasuk pengembalian dana) dan <Link href="/privasi">Kebijakan Privasi</Link>.</p>
             <div className="pr-cta-row">
               <button
                 type="button"
