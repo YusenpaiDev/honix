@@ -79,4 +79,5 @@
 }
 .latihan-kilat .fb-alat button:hover, .latihan-kilat .fb-alat button:focus-visible { border-color: rgba(221, 65, 36, .45); color: #fff; outline: none; }
 .latihan-kilat .fb-alat button svg { color: var(--primary, #DD4124); }
-@media (max-width: 767px) { .latihan-kilat .fb-alat button { min-height: 44px; } }
+/* HP: tiap baris penuh — tombol yang kebungkus ke baris dua melebar, gak nyangkut sendirian. */
+@media (max-width: 767px) { .latihan-kilat .fb-alat button { min-height: 44px; flex: 1 1 auto; justify-content: center; } }
