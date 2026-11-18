@@ -8499,6 +8499,24 @@ html { scrollbar-gutter: stable; }
 .beranda-v2 .wkl.now { color: #E8704F; }
 .beranda-v2 .wk-note { font-size: 10.5px; color: var(--b-dim); margin-top: 11px; padding-top: 11px; border-top: 1px solid var(--b-line); line-height: 1.5; }
 .beranda-v2 .wk-note b { color: var(--b-muted); }
+
+/* Ajakan Discord — warna ikut kartu "lanjutin" (.bv-resume), bukan ungu Discord,
+   biar tetap kerasa bagian Honix. Satu versi di sidebar (desktop), satu di
+   kolom utama (≤1000px, sidebar turun ke bawah & lonceng HP disembunyiin). */
+.beranda-v2 .dc-ajak { background: linear-gradient(135deg, rgba(221,65,36,0.12), var(--b-surface) 70%); border-color: rgba(221,65,36,0.28); }
+.beranda-v2 .dc-ajak .s-h { margin-bottom: 10px; }
+.beranda-v2 .dc-tutup { display: grid; place-items: center; width: 24px; height: 24px; margin: -4px -6px -4px 0; border-radius: 8px; border: none; background: transparent; color: var(--b-dim); cursor: pointer; }
+.beranda-v2 .dc-tutup:hover { background: var(--b-line); color: var(--b-text); }
+.beranda-v2 .dc-isi { display: flex; align-items: center; gap: 12px; }
+.beranda-v2 .dc-hx { flex-shrink: 0; width: 56px; height: 56px; object-fit: contain; }
+.beranda-v2 .dc-t { font-size: 14px; font-weight: 700; color: var(--b-text); }
+.beranda-v2 .dc-s { font-size: 11.5px; color: var(--b-muted); line-height: 1.5; margin-top: 3px; }
+.beranda-v2 .dc-gabung { width: 100%; margin-top: 13px; text-decoration: none; }
+.beranda-v2 .dc-kolom { display: none; }
+@media (max-width: 1000px) {
+  .beranda-v2 .dc-kolom { display: block; }
+  .beranda-v2 .dc-samping { display: none; }
+}
 .beranda-v2 .riw { display: flex; flex-direction: column; gap: 5px; }
 .beranda-v2 .riw-i { display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: 10px; cursor: pointer; transition: .13s; color: var(--b-text); }
 .beranda-v2 .riw-i:hover { background: var(--b-surface-2); color: var(--b-text); }

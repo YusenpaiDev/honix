@@ -39,7 +39,8 @@ export interface Peringatan {
   ikon: string;
   judul: string;
   pesan: string;
-  aksi?: { label: string; href: string };
+  /** `eksternal` → dibuka di tab baru (mis. undangan Discord), bukan <Link>. */
+  aksi?: { label: string; href: string; eksternal?: boolean };
 }
 
 /* ── Ambang ──────────────────────────────────────────────────────────────
