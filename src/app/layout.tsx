@@ -49,8 +49,8 @@ export const metadata: Metadata = {
   /* PWA (handoff landing §4, §9): ikon kepala Honix gantiin kotak 先. */
   manifest: "/manifest.webmanifest",
   icons: {
-    icon: [{ url: "/icons/favicon-32.png", sizes: "32x32", type: "image/png" }, { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],
-    apple: [{ url: "/icons/apple-touch-icon-180.png", sizes: "180x180" }],
+    icon: [{ url: "/icons/favicon-32.png?v=2", sizes: "32x32", type: "image/png" }, { url: "/icons/icon-192.png?v=2", sizes: "192x192", type: "image/png" }],
+    apple: [{ url: "/icons/apple-touch-icon-180.png?v=2", sizes: "180x180" }],
   },
   appleWebApp: { capable: true, title: "Honix", statusBarStyle: "black-translucent" },
   openGraph: {
