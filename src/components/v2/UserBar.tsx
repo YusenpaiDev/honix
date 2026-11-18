@@ -7,6 +7,8 @@ import { Sparkles, Bell, Settings, CreditCard } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { usePeringatan } from "@/lib/peringatan";
 import { useTandaHarian } from "@/lib/tanda-harian";
+import { PERINGATAN_KOMUNITAS, tampilDiLonceng } from "@/lib/komunitas";
+import { useKomunitas } from "@/lib/use-komunitas";
 import { honixSrc } from "@/lib/honix-pose";
 import { bukaCaraBelajar } from "@/components/alur/CaraBelajar";
 import { TombolKeluar } from "./TombolKeluar";
@@ -74,12 +76,28 @@ export function UserBar({
   const perluDilihat = semua.filter(
     p => p.tingkat !== "info" && !dilihat.includes(p.id)
   );
-  const showDot = loaded && perluDilihat.length > 0;
+
+  /* Ajakan Discord: di luar usePeringatan biar gak nyerobot banner Beranda
+     (Beranda udah punya kartunya sendiri). Muncul sekali di lonceng, dengan
+     titik merah walau tingkatnya "info" — kalau gak, gak ada yang buka. */
+  const komunitas = useKomunitas();
+  const [komunitasSesiIni, setKomunitasSesiIni] = useState(false);
+  const ajakBaru = komunitas.status === null;
+  const daftar = tampilDiLonceng(komunitas.status, komunitasSesiIni)
+    ? [...semua, PERINGATAN_KOMUNITAS]
+    : semua;
+
+  const showDot = (loaded && perluDilihat.length > 0) || ajakBaru;
 
   const openNotif = () => {
     setNotifOpen(o => !o);
     if (perluDilihat.length > 0) tandai(semua.map(p => p.id));
+    if (ajakBaru) {
+      setKomunitasSesiIni(true);
+      komunitas.tandaiDilihat();
+    }
   };
+  const jumlahBaru = perluDilihat.length + (ajakBaru ? 1 : 0);
 
   return (
     <div className="af-userbar">
@@ -118,7 +136,7 @@ export function UserBar({
           <button
             type="button"
             className="icon-btn"
-            aria-label={showDot ? `Notifikasi, ${perluDilihat.length} baru` : "Notifikasi"}
+            aria-label={showDot ? `Notifikasi, ${jumlahBaru} baru` : "Notifikasi"}
             onClick={openNotif}
           >
             <Bell size={16} />
@@ -129,18 +147,28 @@ export function UserBar({
               <div className="notif-backdrop" onClick={() => setNotifOpen(false)} />
               <div className="notif-pop" role="dialog" aria-label="Notifikasi">
                 <div className="notif-pop-head">Notifikasi</div>
-                {semua.length === 0 ? (
+                {daftar.length === 0 ? (
                   <div className="notif-empty">
                     {loaded ? "Semua aman — gak ada yang perlu dikejar 🎉" : "Sebentar…"}
                   </div>
                 ) : (
-                  semua.map(n => (
+                  daftar.map(n => (
                     <div key={n.id} className={`notif-item ${n.tingkat}`}>
                       <span className="notif-ic" aria-hidden>{n.ikon}</span>
                       <div className="notif-body">
                         <div className="notif-t">{n.judul}</div>
                         <div className="notif-d">{n.pesan}</div>
-                        {n.aksi && (
+                        {n.aksi?.eksternal ? (
+                          <a
+                            href={n.aksi.href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="notif-aksi"
+                            onClick={() => { komunitas.tandaiSelesai(); setNotifOpen(false); }}
+                          >
+                            {n.aksi.label} ↗
+                          </a>
+                        ) : n.aksi && (
                           <Link
                             href={n.aksi.href}
                             className="notif-aksi"

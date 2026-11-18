@@ -17,6 +17,7 @@ import { Honix } from "@/components/honix/Honix";
 import { KalenderMini } from "@/components/rencana/KalenderMini";
 import { MisiHarian } from "@/components/rencana/MisiHarian";
 import { KilatHarian } from "@/components/beranda/KilatHarian";
+import { AjakanDiscord } from "@/components/beranda/AjakanDiscord";
 import { bukaCaraBelajar } from "@/components/alur/CaraBelajar";
 import "@/styles/alur.css";
 import { PerkiraanMini, type SesiSkor } from "@/components/kurikulum/Perkiraan";
@@ -580,6 +581,8 @@ export default function Home() {
             <div className="bv-col">
               {/* Misi harian (Rencana Belajar §3): paling atas kolom kiri, di bawah baris statistik. */}
               {stats.loaded && <MisiHarian level={stats.targetLevel} rekorStreak={stats.rekor} sesi={semuaSesi} />}
+              {/* Ajakan Discord versi HP/tablet — sidebar turun ke bawah di ≤1000px. */}
+              <AjakanDiscord letak="kolom" />
               {/* kanji + quiz */}
               <div className="bv-duo">
                 <div className="bv-kanji card">
@@ -647,6 +650,8 @@ export default function Home() {
                   <div className="cd-m"><div className="cd-t">JLPT {stats.targetLevel} · {examLabel}</div><div className="cd-s">{meta.days != null ? `${meta.days} hari lagi — jaga pace kamu, konsisten menang.` : ""}</div></div>
                 </div>
               </div>
+
+              <AjakanDiscord letak="samping" />
 
               <div className="bv-scard card">
                 <div className="s-h">Aktivitas 7 hari {delta.aktivitas != null
