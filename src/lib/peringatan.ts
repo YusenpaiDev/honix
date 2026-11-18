@@ -9,6 +9,7 @@ import { statusAkses } from "@/lib/batas-paket";
 import { peringatanTrial, type AksesTrial } from "@/lib/peringatan-trial";
 import { perluIngatTesMini, seninDari } from "@/lib/tes-mini";
 import { fiturLive } from "@/lib/kurikulum-config";
+import { bacaAdaUlangan, KUNCI_ADA_ULANGAN, KUNCI_LEWAT_ULANGAN, peringatanKurikulum, seninIni } from "@/lib/peringatan-kurikulum";
 
 /**
  * Peringatan belajar — streak mau putus, ujian makin dekat, latihan mandek,
@@ -41,6 +42,8 @@ export interface Peringatan {
   pesan: string;
   /** `eksternal` → dibuka di tab baru (mis. undangan Discord), bukan <Link>. */
   aksi?: { label: string; href: string; eksternal?: boolean };
+  /** Cuma di lonceng, gak dipilih jadi banner Beranda. */
+  hanyaLonceng?: boolean;
 }
 
 /* ── Ambang ──────────────────────────────────────────────────────────────
@@ -94,6 +97,13 @@ export interface Bahan {
   examDate: string | null;
   /** Status akses (trial/pro/expired) + kapan trial habis. null = gak kebaca. */
   akses?: AksesTrial | null;
+  /** Level kurikulum yang lagi jalan. null = belum mulai; undefined = gak kebaca. */
+  kurikulumLevel?: string | null;
+  /** Ulangan yang udah dikerjain (kolom `minggu`, Senin-nya), minggu ini ke atas. */
+  ulanganMinggu?: string[];
+  /** Penanda localStorage dari kartu Misi (lihat peringatan-kurikulum.ts). */
+  lewatUlangan?: string | null;
+  adaUlangan?: string | null;
 }
 
 /** Selisih hari kalender antara dua tanggal YYYY-MM-DD.
@@ -141,7 +151,8 @@ async function ambilBahan(): Promise<Bahan | null> {
 
   const batasUlang = new Date(Date.now() - ULANG_SETELAH_HARI * 86_400_000).toISOString();
 
-  const [akt, ses, kot, bun, prof, pro] = await Promise.all([
+  const seninMingguIni = seninIni(tanggalLokal());
+  const [akt, ses, kot, bun, prof, pro, kur, ul] = await Promise.all([
     // Tanpa batas tanggal: satu baris per hari, jadi setahun pun cuma ~365
     // baris — dan streak 40 hari harus kebaca 40, bukan kepotong jendela.
     supabase.from("aktivitas_harian").select("tanggal")
@@ -154,7 +165,10 @@ async function ambilBahan(): Promise<Bahan | null> {
       .eq("user_id", user.id).lt("updated_at", batasUlang),
     supabase.from("profiles").select("target_level").eq("id", user.id).single(),
     supabase.rpc("is_pro"),
+    supabase.from("kurikulum_user").select("level").eq("user_id", user.id).maybeSingle(),
+    supabase.from("ulangan").select("minggu").eq("user_id", user.id).gte("minggu", seninMingguIni),
   ]);
+  const baca = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
 
   /* Yang ditagih cuma yang salahnya lebih banyak dari benarnya. Bandingan
      antar-kolom gak bisa ditulis di PostgREST (.gt("salah","benar") nganggep
@@ -180,6 +194,12 @@ async function ambilBahan(): Promise<Bahan | null> {
     /* is_pro() gagal kebaca → jangan nebak; lebih baik diem daripada nyuruh
        orang Pro berlangganan. */
     akses: typeof pro.data === "boolean" ? statusAkses(user.created_at, pro.data) : null,
+    /* Gagal kebaca → undefined → lonceng diem, daripada nyuruh tes penempatan
+       orang yang kurikulumnya udah jalan. */
+    kurikulumLevel: kur.error ? undefined : ((kur.data as { level: string } | null)?.level ?? null),
+    ulanganMinggu: ((ul.data ?? []) as { minggu: string }[]).map(r => r.minggu),
+    lewatUlangan: baca(KUNCI_LEWAT_ULANGAN),
+    adaUlangan: baca(KUNCI_ADA_ULANGAN),
   };
 }
 
@@ -231,7 +251,7 @@ export function usePeringatan(): HasilPeringatan {
   const semua = useMemo<Peringatan[]>(
     () => (bahan ? susunPeringatan(bahan) : []), [bahan]);
 
-  return { semua, utama: semua[0] ?? null, loaded };
+  return { semua, utama: semua.find(p => !p.hanyaLonceng) ?? null, loaded };
 }
 
 /**
@@ -291,6 +311,18 @@ export function susunPeringatan(bahan: Bahan, sekarang = new Date()): Peringatan
 
   const trial = peringatanTrial(bahan.akses, sekarang);
   if (trial) P.push(trial);
+
+  /* ── 0b. Kurikulum: tes penempatan belum, Ulangan Senin kelewat ───── */
+  const senin = seninIni(hariIni);
+  P.push(...peringatanKurikulum({
+    live: { kurikulum: fiturLive("kurikulum"), penempatan: fiturLive("penempatan"), ulangan: fiturLive("ulangan") },
+    level: bahan.targetLevel,
+    kurikulumJalan: bahan.kurikulumLevel === undefined ? null : bahan.kurikulumLevel === bahan.targetLevel,
+    hariIni,
+    adaUlangan: bacaAdaUlangan(bahan.adaUlangan ?? null, senin),
+    ulanganSelesai: (bahan.ulanganMinggu ?? []).includes(senin),
+    ulanganDilewati: bahan.lewatUlangan === senin,
+  }));
 
   /* ── A. Streak ─────────────────────────────────────────────────────── */
 
