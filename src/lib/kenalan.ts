@@ -36,7 +36,7 @@ export function bolehKenalan(k: {
 }
 
 export const TEKS_KENALAN: Record<IdKenalan, [string, string]> = {
-  senin: ["Pertama kali · Ulangan mingguan", "Tiap Senin ada ulangan **±10 menit**: materi & yang salah minggu lalu, ditanya ulang dalam bentuk baru. Hasilnya ngatur isi misi minggu ini. Dilewati juga gak apa-apa."],
+  senin: ["Pertama kali · Ulangan mingguan", "Tiap Senin ada ulangan **±10 menit**: materi & yang salah minggu lalu, ditanya ulang dalam bentuk baru. Hasilnya ngatur isi misi minggu ini. Kelewat Senin? Masih bisa sampai Rabu. Dilewati juga gak apa-apa."],
   simulasi: ["Pertama kali · Simulasi bulanan", "Simulasi pakai **set latihan format JLPT** dari Bank Soal: susunan & waktunya kayak ujian, tapi waktunya cuma dicatat. Set yang kamu kerjain di sini ikut nyalain pos di Bank Soal."],
   perkiraan: ["Baru kebuka · Perkiraan skor", "Jawabanmu udah cukup (150), jadi Honix bisa ngira skormu **kalau ujiannya hari ini**. Ini perkiraan, bukan skor resmi. Makin banyak jawaban, makin akurat."],
   bebas_bank: ["Pertama kali · Latihan bebas", "Ini tempat latihan bebas. **Misi harianmu tetap jalan** di Beranda, dan semua yang kamu kerjain di sini tetap kecatat di progres."],

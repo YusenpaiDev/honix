@@ -21,6 +21,7 @@ import { KartuKenalan } from "@/components/alur/KartuKenalan";
 import { Strip } from "@/components/kurikulum/Bagian";
 import { judulUlangan, unitUlangan } from "@/components/kurikulum/Ulangan";
 import { MomenKurikulum, type IsiMomen } from "@/components/kurikulum/Momen";
+import { KUNCI_ADA_ULANGAN, KUNCI_LEWAT_ULANGAN } from "@/lib/peringatan-kurikulum";
 
 const BOLONG: Record<AlasanBolong, [string, string]> = {
   sibuk: ["Lagi sibuk", "Wajar. Gimana kalau turun ke Santai 10 menit dulu? Bisa naik lagi kapan aja."],
@@ -49,7 +50,8 @@ function Kepala({ eyebrow, judul, menit, target, peta = false }: { eyebrow: stri
   );
 }
 
-const KUNCI_LEWAT = "honix:lewat-ulangan";
+/* Dipakai juga lonceng (peringatan-kurikulum.ts) — satu sumber nama kunci. */
+const KUNCI_LEWAT = KUNCI_LEWAT_ULANGAN;
 const KUNCI_MOMEN = "honix:momen-unit";
 const baca = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
 const tulis = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* mode privat */ } };
@@ -69,6 +71,11 @@ export function MisiHarian({ level, rekorStreak, sesi }: {
   const senin = ku ? seninDari(ku.hariIni) : "";
   const [lewatSenin, setLewatSenin] = useState(false);
   const [momen, setMomen] = useState<IsiMomen | null>(null);
+
+  /* Kasih tahu lonceng minggu ini ada ulangan apa enggak (dia gak ngitung kurikulum sendiri). */
+  useEffect(() => {
+    if (ku && senin) tulis(KUNCI_ADA_ULANGAN, `${senin}:${unitUlangan(ku).length > 0 ? 1 : 0}`);
+  }, [ku, senin]);
 
   /* Minggu baru: momen "unit selesai" sekali per minggu (§8). */
   useEffect(() => {
@@ -123,8 +130,15 @@ export function MisiHarian({ level, rekorStreak, sesi }: {
   const detail = ku && ku.tempoItem.length > 0 ? detailTempo(ku.tempoItem, hariIni, ATURAN.srsInterval) : null;
   const tierKilat = ku?.tingkat.get("文法形式の判断")?.tingkat ?? 1;
   const unitUl = ku ? unitUlangan(ku) : [];
-  const ulanganSenin = ku && fiturLive("ulangan") && unitUl.length > 0 && new Date(`${ku.hariIni}T12:00:00`).getDay() === 1
+  /* Ulangan: Senin, dan masih ditawarin Selasa–Rabu kalau kelewat (lonceng juga
+     ngingetin di dua hari itu — lihat peringatan-kurikulum.ts). */
+  const hariUl = ku ? new Date(`${ku.hariIni}T12:00:00`).getDay() : -1;
+  const ulanganSenin = ku && fiturLive("ulangan") && unitUl.length > 0 && hariUl >= 1 && hariUl <= 3
     && !ku.ulangan.some(u => u.minggu === senin) && !lewatSenin && baca(KUNCI_LEWAT) !== senin;
+  /* Kurikulum level ini belum jalan → ajakan tes penempatan di kartu misi. */
+  const ajakPenempatan = k.siap && k.belumMulai && fiturLive("kurikulum") ? (
+    <p className="misi-p">🧭 Kurikulum {level} kamu belum jalan. <Link href="/penempatan">{fiturLive("penempatan") ? "Mulai tes penempatan ±15 menit →" : "Mulai kurikulum →"}</Link> biar misi harian ngikutin jadwal sampai hari ujian.</p>
+  ) : null;
   const selesai = berikut === null;
   let kartu: React.ReactNode;
   let honix: { pose: HonixPose; bub: string } | null = null;
@@ -132,7 +146,7 @@ export function MisiHarian({ level, rekorStreak, sesi }: {
   if (ulanganSenin) {
     kartu = (<>
       <div className="card misi" data-tur="misi">
-        <div className="mku-h"><div className="eyebrow">Senin · misi khusus · {posisi}</div><Link href="/kurikulum">Peta kurikulum →</Link></div>
+        <div className="mku-h"><div className="eyebrow">{hariUl === 1 ? "Senin · misi khusus" : `Ulangan minggu ini · ${hariUl === 3 ? "hari terakhir" : "sampai Rabu"}`} · {posisi}</div><Link href="/kurikulum">Peta kurikulum →</Link></div>
         <div className="misi-t">Ulangan {judulUlangan(ku, unitUl)} · ±10 menit</div>
         <Strip unit={ku.unit} />
         <p className="misi-p">Materi & yang salah minggu lalu, ditanya ulang dalam bentuk baru. <b>24 soal.</b> Misi biasa tetap ada setelahnya.</p>
@@ -199,6 +213,7 @@ export function MisiHarian({ level, rekorStreak, sesi }: {
       kartu = (
         <div className="card misi done" data-tur="misi">
           <Kepala eyebrow={eyebrow} peta={Boolean(ku)} judul="Misi selesai" menit={m.menitHariIni} target={P.m} />
+          {ajakPenempatan}
           {ku && <div data-tur="strip"><Strip unit={ku.unit} /></div>}
           <p className="misi-p"><b>{m.menitHariIni} menit</b> hari ini{m.menitHariIni >= P.m ? `, lewat dari target ${P.m}` : ""}. Cap hari ini udah nempel di kalender.</p>
           {langkah}
@@ -218,6 +233,7 @@ export function MisiHarian({ level, rekorStreak, sesi }: {
       kartu = (
         <div className="card misi" data-tur="misi">
           <Kepala eyebrow={eyebrow} peta={Boolean(ku)} judul={`${P.e} ${P.t} · ${P.m} menit`} menit={m.menitHariIni} target={P.m} />
+          {ajakPenempatan}
           {ku && <div data-tur="strip"><Strip unit={ku.unit} /></div>}
           {rencana[0].dilewati && !jalan && <p className="misi-p">Gak ada yang perlu diulang hari ini. Waktunya dipindah ke materi baru dan latihan soal.</p>}
           {ku && !ku.ini.length && <p className="misi-p">{ku.mode === "akhir" ? "Ujian udah dekat, materi baru gak ditambah." : "Semua unit udah kebagian."} Tambahin satu bagian set latihan format JLPT tiap hari. <Link href="/latihan/set?dari=misi">Buka Bank Soal →</Link></p>}
