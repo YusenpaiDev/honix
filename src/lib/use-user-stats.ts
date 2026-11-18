@@ -7,6 +7,8 @@ import { fetchProAccess } from "@/lib/access";
 import { tanggalLokal } from "@/lib/aktivitas";
 import { rapikanTanggalUjian } from "@/lib/sesi-ujian";
 import { EVENT_XP_TERSIMPAN, XP_PER_LEVEL } from "@/lib/honix-level";
+import { bacaCache, simpanCache } from "@/lib/cache-lokal";
+import { uidLokal } from "@/lib/uid-lokal";
 
 /**
  * Satu sumber data buat header tiap halaman: streak, XP, level target, status PRO.
@@ -77,32 +79,46 @@ const DEV_STATS: UserStats = {
   examDate: "2026-12-06", initial: "Y", loaded: true,
 };
 
+/* Salinan terakhir (lihat cache-lokal.ts). `akses` gak ikut disimpen —
+   dihitung ulang dari tanggal daftar biar sisa trial gak basi. */
+type SalinanStats = Omit<UserStats, "akses" | "loaded"> & { dibuat: string | null };
+const CACHE_STATS = "stats-v1";
+
 export function useUserStats(): UserStats {
   const [stats, setStats] = useState<UserStats>(DEV_BYPASS ? DEV_STATS : AWAL);
 
   useEffect(() => {
     if (DEV_BYPASS) return;
     let batal = false;
+    let segar = false;
+
+    /* Header langsung keisi dari salinan terakhir — gak "—" / N3 dulu. */
+    uidLokal().then(uid => {
+      const c = bacaCache<SalinanStats>(CACHE_STATS, uid);
+      if (!c || batal || segar) return;
+      const { dibuat, ...isi } = c;
+      setStats({ ...isi, akses: statusAkses(dibuat, isi.isPro), loaded: true });
+    });
 
     async function muat() {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user || batal) return;
 
-      const { data: profil } = await supabase
-        .from("profiles")
-        .select("username, target_level, xp, streak, is_premium, premium_until, is_lifetime")
-        .eq("id", user.id)
-        .single();
-      if (batal) return;
-
-      const isPro = await fetchProAccess(supabase);
-      if (batal) return;
-
-      /* Streak dari aktivitas nyata, bukan kolom profiles.streak. Kolom itu
-         dulu dinaikin di <Sidebar> — komponen yang gak dirender halaman mana
-         pun — jadi isinya angka beku yang gak nyambung sama apa pun. */
-      const { data: st } = await supabase.rpc("streak_saya", { p_hari_ini: tanggalLokal() });
+      /* Tiga-tiganya gak saling tunggu — dulu berurutan, jadi tiap header
+         nunggu tiga perjalanan jaringan satu-satu. */
+      const [{ data: profil }, isPro, { data: st }] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("username, target_level, xp, streak, is_premium, premium_until, is_lifetime")
+          .eq("id", user.id)
+          .single(),
+        fetchProAccess(supabase),
+        /* Streak dari aktivitas nyata, bukan kolom profiles.streak. Kolom itu
+           dulu dinaikin di <Sidebar> — komponen yang gak dirender halaman mana
+           pun — jadi isinya angka beku yang gak nyambung sama apa pun. */
+        supabase.rpc("streak_saya", { p_hari_ini: tanggalLokal() }),
+      ]);
       const streakBaris = Array.isArray(st) ? st[0] : st;
       if (batal) return;
 
@@ -123,7 +139,7 @@ export function useUserStats(): UserStats {
       const mdLevel = user.user_metadata?.target_level as TargetLevel | undefined;
       const targetLevel = mdLevel ?? (profil?.target_level as TargetLevel) ?? "N3";
 
-      setStats({
+      const baru: SalinanStats = {
         streak: streakBaris?.sekarang ?? 0,
         rekor: streakBaris?.terpanjang ?? 0,
         // XP jalan terus lintas level; yang ditampilin sisa di level sekarang.
@@ -136,13 +152,16 @@ export function useUserStats(): UserStats {
         // Jangan hitung ulang dari email di sini: daftarnya udah gak ada di
         // client, dan entitlement yang dihitung di browser gampang dipalsuin.
         isPro,
-        akses: statusAkses(user.created_at, isPro),
         premiumUntil: (profil?.premium_until as string | null) ?? null,
         isLifetime: profil?.is_lifetime === true,
         examDate,
         initial: String(nama)[0].toUpperCase(),
-        loaded: true,
-      });
+        dibuat: user.created_at,
+      };
+      segar = true;
+      const { dibuat, ...isi } = baru;
+      setStats({ ...isi, akses: statusAkses(dibuat, isPro), loaded: true });
+      simpanCache(CACHE_STATS, user.id, baru);
     }
 
     muat();
