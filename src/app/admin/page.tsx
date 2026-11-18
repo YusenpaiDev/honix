@@ -1,8 +1,14 @@
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
 import { connection } from "next/server";
+import {
+  Activity, AlertTriangle, ArrowDownRight, ArrowUpRight, BookOpen, Bot, CheckCircle2, Coins, Crown,
+  FileWarning, Flame, RefreshCw, Repeat, Sparkles, TrendingUp, Users, Wallet,
+} from "lucide-react";
 import { wajibAdmin } from "@/lib/admin/akses";
 import { ambilDasbor, type DasborAdmin } from "@/lib/admin/data";
 import { dasborContoh } from "@/lib/admin/contoh";
+import { jalurArea, perluDicek, tren, type Nada, type PerHari } from "@/lib/admin/tampil";
 import { PAKET, adalahPaket } from "@/lib/paket";
 import "./admin.css";
 
@@ -11,32 +17,111 @@ export const metadata: Metadata = { title: "Admin · Honix JLPT", robots: { inde
 const rp = (n: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n);
 const angka = (n: number) => n.toLocaleString("id-ID");
 const tgl = (iso: string) => new Date(iso).toLocaleString("id-ID", { timeZone: "Asia/Jakarta", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+const tglPendek = (ymd: string) => new Date(`${ymd}T12:00:00`).toLocaleDateString("id-ID", { day: "numeric", month: "short" });
 /* Nama dari paket.ts dibuang awalan "Honix JLPT" — langganan.ts punya versi
    pendeknya, tapi itu modul "use client" (gak bisa dipanggil dari server). */
 const namaPendek = (id: string) => (adalahPaket(id) ? PAKET[id].nama.replace(/^Honix JLPT /, "") : id);
 const NAMA_FITUR: Record<string, string> = { chat: "Chat Sensei", furigana: "Furigana", "tugas-generate": "Lembar tugas AI" };
+const LEVEL = ["N1", "N2", "N3", "N4", "N5"] as const;
+const KATEGORI = ["文字", "語彙", "文法", "読解"] as const;
+const URUT_STATUS = ["lunas", "pending", "gagal", "kadaluarsa", "refund"];
 
-function Kartu({ label, nilai, sub, nada }: { label: string; nilai: string; sub?: string; nada?: "ok" | "warn" | "bad" }) {
+/* ───────── potongan kecil ───────── */
+
+function Tren({ data, label = "vs 7 hari lalu" }: { data: PerHari; label?: string }) {
+  const t = tren(data);
+  if (t.persen == null) return <span className="adm-tren datar">{t.ini ? `+${angka(t.ini)} minggu ini` : "belum ada minggu ini"}</span>;
+  const naik = t.persen >= 0;
   return (
-    <div className={`adm-kartu${nada ? ` ${nada}` : ""}`}>
-      <span className="adm-label">{label}</span>
+    <span className={`adm-tren ${naik ? "naik" : "turun"}`}>
+      {naik ? <ArrowUpRight size={13} aria-hidden /> : <ArrowDownRight size={13} aria-hidden />}
+      {naik ? "+" : ""}{t.persen}% <em>{label}</em>
+    </span>
+  );
+}
+
+function Kpi({ ikon, warna, label, nilai, bawah, nada }: {
+  ikon: ReactNode; warna: string; label: string; nilai: string; bawah?: ReactNode; nada?: Nada;
+}) {
+  return (
+    <div className={`adm-kpi${nada ? ` ${nada}` : ""}`} style={{ ["--c" as string]: warna }}>
+      <div className="adm-kpi-l"><span className="adm-ic">{ikon}</span>{label}</div>
       <strong>{nilai}</strong>
-      {sub && <span className="adm-sub">{sub}</span>}
+      {bawah && <div className="adm-kpi-b">{bawah}</div>}
     </div>
   );
 }
 
-function Batang({ data, label }: { data: { tanggal: string; n: number }[]; label: string }) {
-  const maks = Math.max(1, ...data.map(d => d.n));
+function Sek({ id, ikon, judul, meta, children }: { id: string; ikon: ReactNode; judul: string; meta?: ReactNode; children: ReactNode }) {
   return (
-    <figure className="adm-batang" aria-label={label}>
-      <div className="adm-batang-isi">
-        {data.map(d => <span key={d.tanggal} style={{ height: `${(d.n / maks) * 100}%` }} title={`${d.tanggal}: ${d.n}`} />)}
+    <section className="adm-sek" aria-labelledby={`${id}-h`} id={id}>
+      <header className="adm-sek-h">
+        <h2 id={`${id}-h`}><span className="adm-ic kecil">{ikon}</span>{judul}</h2>
+        {meta && <span className="adm-sek-meta">{meta}</span>}
+      </header>
+      {children}
+    </section>
+  );
+}
+
+function Panel({ judul, kanan, className = "", children }: { judul?: string; kanan?: ReactNode; className?: string; children: ReactNode }) {
+  return (
+    <div className={`adm-panel ${className}`}>
+      {(judul || kanan) && <div className="adm-panel-h">{judul && <h3>{judul}</h3>}{kanan}</div>}
+      {children}
+    </div>
+  );
+}
+
+/** Grafik area 30 hari: garis bantu + sumbu, tooltip per hari lewat <title>. */
+function Grafik({ data, label, warna = "var(--primary)" }: { data: PerHari; label: string; warna?: string }) {
+  const W = 600, H = 160;
+  const { atas, garis, area, titik } = jalurArea(data, W, H);
+  const lebarKolom = data.length ? W / data.length : W;
+  const idGrad = `g-${label.replace(/\W/g, "")}`;
+  const total = data.reduce((s, d) => s + d.n, 0);
+  return (
+    <figure className="adm-grafik" aria-label={`${label}: total ${total} dalam ${data.length} hari`} style={{ ["--c" as string]: warna }}>
+      <div className="adm-grafik-isi">
+        <div className="adm-sumbu" aria-hidden>
+          {[atas, atas / 2, 0].map(v => <span key={v}>{angka(Math.round(v))}</span>)}
+        </div>
+        <div className="adm-kanvas">
+          <i className="adm-bantu" style={{ top: 0 }} /><i className="adm-bantu" style={{ top: "50%" }} /><i className="adm-bantu dasar" style={{ top: "100%" }} />
+          <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden>
+            <defs>
+              <linearGradient id={idGrad} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stopColor={warna} stopOpacity=".38" />
+                <stop offset="1" stopColor={warna} stopOpacity="0" />
+              </linearGradient>
+            </defs>
+            <path d={area} fill={`url(#${idGrad})`} />
+            <path d={garis} fill="none" stroke={warna} strokeWidth="2.2" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+            {titik.map(t => (
+              <rect key={t.tanggal} x={Math.max(0, t.x - lebarKolom / 2)} y={0} width={lebarKolom} height={H} fill="transparent" className="adm-kolom">
+                <title>{`${tglPendek(t.tanggal)}: ${t.n}`}</title>
+              </rect>
+            ))}
+          </svg>
+          {titik.length > 0 && (
+            <span className="adm-titik-akhir" style={{ left: "100%", top: `${(titik[titik.length - 1].y / H) * 100}%` }} aria-hidden />
+          )}
+        </div>
       </div>
-      <figcaption><span>{data[0]?.tanggal.slice(5)}</span><span>{label} · maks {maks}</span><span>hari ini</span></figcaption>
+      <figcaption>
+        <span>{data[0] && tglPendek(data[0].tanggal)}</span>
+        <span>{data[15] && tglPendek(data[15].tanggal)}</span>
+        <span>Hari ini</span>
+      </figcaption>
     </figure>
   );
 }
+
+function Status({ s }: { s: string }) {
+  return <span className={`adm-chip st-${s}`}><i />{s.toUpperCase()}</span>;
+}
+
+/* ───────── halaman ───────── */
 
 /**
  * Dasbor admin — cuma email di ADMIN_EMAILS (selain itu 404). Gak ada link di
@@ -50,186 +135,256 @@ export default async function AdminPage() {
   else { await wajibAdmin(); d = await ambilDasbor(); }
   const { user, uang, pemakaian, konten } = d;
   const totalSet = pemakaian.setPerHari.reduce((s, x) => s + x.n, 0);
-  const maksLevel = Math.max(1, ...Object.values(user.perLevel));
+  const totalLevel = Math.max(1, Object.values(user.perLevel).reduce((a, b) => a + b, 0));
+  const totalAiMinggu = Object.values(pemakaian.ai).reduce((s, a) => s + a.minggu, 0);
+  const maksAi = Math.max(1, ...Object.values(pemakaian.ai).map(a => a.minggu));
+  const maksPopuler = Math.max(1, ...pemakaian.populer.map(p => p.n));
+  const totalTx = Object.values(uang.perStatus).reduce((a, b) => a + b, 0);
+  const statusUrut = Object.entries(uang.perStatus).sort((a, b) => URUT_STATUS.indexOf(a[0]) - URUT_STATUS.indexOf(b[0]));
+  const maksSel = Math.max(1, ...Object.values(konten.bankSoal).flatMap(k => Object.values(k)));
+  const bankKosong = Object.entries(konten.bankSoal).flatMap(([l, k]) => KATEGORI.filter(c => !(k[c] ?? 0)).map(c => `${l} ${c}`));
+  const cek = perluDicek({
+    pendingNyangkut: uang.pendingNyangkut, errorHari: d.error?.hari ?? null, sesiReview: konten.sesiReview,
+    segeraHabis: uang.segeraHabis, bankKosong,
+  });
 
   return (
     <main className="adm">
+      <div className="adm-cahaya" aria-hidden />
+
       <header className="adm-head">
-        <div>
-          <h1>Dasbor admin</h1>
-          <p>Diperbarui {tgl(d.dibuat)} WIB{devBypass && " · data contoh (dev)"}</p>
+        <div className="adm-head-l">
+          {/* eslint-disable-next-line @next/next/no-img-element -- aset statis kecil, gak perlu optimasi */}
+          <img src="/honix/09-kepala.png" alt="" width={52} height={52} className="adm-maskot" />
+          <div>
+            <p className="adm-kicker">Honix JLPT · Admin</p>
+            <h1>Dasbor</h1>
+            <p className="adm-waktu">Diperbarui {tgl(d.dibuat)} WIB{devBypass && <b> · data contoh (dev)</b>}</p>
+          </div>
         </div>
-        <a className="adm-btn" href="/admin">↻ Muat ulang</a>
+        <a className="adm-btn" href="/admin"><RefreshCw size={15} aria-hidden /> Muat ulang</a>
       </header>
 
-      <section className="adm-sek" aria-labelledby="adm-user">
-        <h2 id="adm-user">User</h2>
-        <div className="adm-grid">
-          <Kartu label="Total user" nilai={angka(user.total)} />
-          <Kartu label="Baru 7 hari" nilai={angka(user.baru7)} sub={`${angka(user.baru30)} dalam 30 hari`} />
-          <Kartu label="Aktif hari ini" nilai={angka(user.aktifHariIni)} sub={`${angka(user.aktif7)} aktif 7 hari`} />
-          <Kartu label="Belum onboarding" nilai={angka(user.belumOnboarding)} nada={user.belumOnboarding ? "warn" : undefined} />
-        </div>
-        <div className="adm-dua">
-          <Batang data={user.daftarPerHari} label="User baru per hari" />
-          <div className="adm-panel">
-            <h3>Level target</h3>
-            {["N1", "N2", "N3", "N4", "N5"].map(l => (
-              <div key={l} className="adm-bar-baris">
-                <span>{l}</span>
-                <div><i style={{ width: `${((user.perLevel[l] ?? 0) / maksLevel) * 100}%` }} /></div>
-                <b>{angka(user.perLevel[l] ?? 0)}</b>
-              </div>
+      {/* Perlu dicek */}
+      {cek.length ? (
+        <div className="adm-cek" role="region" aria-label="Perlu dicek">
+          <div className="adm-cek-h"><AlertTriangle size={16} aria-hidden /> Perlu dicek <b>{cek.length}</b></div>
+          <div className="adm-cek-isi">
+            {cek.map(c => (
+              <a key={c.judul} href={c.ke} className={`adm-cek-item ${c.nada}`}>
+                <i />
+                <span><b>{c.judul}</b><em>{c.ket}</em></span>
+              </a>
             ))}
           </div>
         </div>
-      </section>
+      ) : (
+        <div className="adm-cek aman"><CheckCircle2 size={16} aria-hidden /> Semua aman — gak ada transaksi nyangkut, error, atau soal yang perlu dibetulin.</div>
+      )}
 
-      <section className="adm-sek" aria-labelledby="adm-uang">
-        <h2 id="adm-uang">Uang &amp; Pro</h2>
-        <div className="adm-grid">
-          <Kartu label="Pendapatan bulan ini" nilai={rp(uang.pendapatanBulanIni)} sub={`Total ${rp(uang.pendapatanTotal)}`} nada="ok" />
-          <Kartu label="Pro aktif" nilai={angka(uang.proAktif)} sub={`${angka(uang.segeraHabis)} habis ≤7 hari`} nada={uang.segeraHabis ? "warn" : undefined} />
-          <Kartu label="Lifetime" nilai={angka(uang.lifetime)} sub={`Whitelist manual ${angka(uang.whitelist)}`} />
-          <Kartu label="PENDING > 1 jam" nilai={angka(uang.pendingNyangkut)} sub="Webhook Midtrans macet?" nada={uang.pendingNyangkut ? "bad" : "ok"} />
-        </div>
-        <div className="adm-dua">
-          <div className="adm-panel">
-            <h3>Transaksi per status</h3>
-            <div className="adm-chip-baris">
-              {Object.entries(uang.perStatus).map(([s, n]) => <span key={s} className={`adm-chip st-${s}`}>{s.toUpperCase()} {angka(n)}</span>)}
-              {!Object.keys(uang.perStatus).length && <span className="adm-kosong">Belum ada transaksi.</span>}
+      {/* Angka utama */}
+      <div className="adm-kpis">
+        <Kpi ikon={<Users size={15} />} warna="#E8704F" label="Total user" nilai={angka(user.total)}
+          bawah={<><span className="adm-plus">+{angka(user.baru7)} minggu ini</span><Tren data={user.daftarPerHari} /></>} />
+        <Kpi ikon={<Activity size={15} />} warna="#8FCB52" label="Aktif hari ini" nilai={angka(user.aktifHariIni)}
+          bawah={<span className="adm-redup">{angka(user.aktif7)} aktif 7 hari · {Math.round((user.aktif7 / Math.max(1, user.total)) * 100)}% dari total</span>} />
+        <Kpi ikon={<Wallet size={15} />} warna="#D4A04A" label="Pendapatan bulan ini" nilai={rp(uang.pendapatanBulanIni)}
+          bawah={<span className="adm-redup">Total sepanjang masa {rp(uang.pendapatanTotal)}</span>} />
+        <Kpi ikon={<Crown size={15} />} warna="#B98BBA" label="Pro aktif" nilai={angka(uang.proAktif)} nada={uang.segeraHabis ? "warn" : undefined}
+          bawah={<span className="adm-redup">{angka(uang.lifetime)} lifetime · {angka(uang.whitelist)} whitelist{uang.segeraHabis ? ` · ${angka(uang.segeraHabis)} habis ≤7 hari` : ""}</span>} />
+      </div>
+
+      {/* User */}
+      <Sek id="adm-user" ikon={<Users size={14} />} judul="User" meta={`${angka(user.baru30)} daftar dalam 30 hari`}>
+        <div className="adm-dua lebar-kiri">
+          <Panel judul="User baru per hari" kanan={<Tren data={user.daftarPerHari} />}>
+            <Grafik data={user.daftarPerHari} label="User baru per hari" />
+          </Panel>
+          <Panel judul="Level target" kanan={<span className="adm-redup">{angka(totalLevel)} user</span>}>
+            <div className="adm-level">
+              {LEVEL.map(l => {
+                const n = user.perLevel[l] ?? 0;
+                return (
+                  <div key={l} className="adm-level-baris" style={{ ["--c" as string]: `var(--${l.toLowerCase()})` }}>
+                    <span className="adm-lv">{l}</span>
+                    <div className="adm-trek"><i style={{ width: `${(n / totalLevel) * 100}%` }} /></div>
+                    <b>{angka(n)}</b><em>{Math.round((n / totalLevel) * 100)}%</em>
+                  </div>
+                );
+              })}
             </div>
-            <h3>Penjualan per paket (LUNAS)</h3>
-            <table className="adm-tabel">
-              <tbody>
-                {Object.entries(uang.perPaket).map(([p, v]) => (
-                  <tr key={p}><td>{namaPendek(p)}</td><td>{angka(v.n)}×</td><td>{rp(v.rp)}</td></tr>
+            <div className="adm-mini">
+              <span><Sparkles size={13} aria-hidden /> Baru 7 hari <b>{angka(user.baru7)}</b></span>
+              <span className={user.belumOnboarding ? "warn" : ""}><Flame size={13} aria-hidden /> Belum onboarding <b>{angka(user.belumOnboarding)}</b></span>
+            </div>
+          </Panel>
+        </div>
+      </Sek>
+
+      {/* Uang */}
+      <Sek id="adm-uang" ikon={<Coins size={14} />} judul="Uang & Pro" meta={`${angka(totalTx)} transaksi tercatat`}>
+        <div className="adm-dua">
+          <Panel judul="Status transaksi">
+            {totalTx ? (
+              <>
+                <div className="adm-tumpuk" role="img" aria-label={statusUrut.map(([s, n]) => `${s} ${n}`).join(", ")}>
+                  {statusUrut.map(([s, n]) => <i key={s} className={`st-${s}`} style={{ flexGrow: n }} title={`${s.toUpperCase()} ${n}`} />)}
+                </div>
+                <div className="adm-legenda">
+                  {statusUrut.map(([s, n]) => (
+                    <span key={s} className={`st-${s}`}><i />{s.charAt(0).toUpperCase() + s.slice(1)}<b>{angka(n)}</b><em>{Math.round((n / totalTx) * 100)}%</em></span>
+                  ))}
+                </div>
+              </>
+            ) : <p className="adm-kosong">Belum ada transaksi.</p>}
+          </Panel>
+          <Panel judul="Penjualan per paket" kanan={<span className="adm-redup">yang LUNAS</span>}>
+            {Object.keys(uang.perPaket).length ? (
+              <div className="adm-paket">
+                {Object.entries(uang.perPaket).sort((a, b) => b[1].rp - a[1].rp).map(([p, v]) => (
+                  <div key={p} className="adm-paket-item">
+                    <span>{namaPendek(p)}</span>
+                    <strong>{rp(v.rp)}</strong>
+                    <em>{angka(v.n)}× terjual</em>
+                  </div>
                 ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="adm-panel adm-lebar">
-            <h3>10 transaksi terakhir</h3>
+              </div>
+            ) : <p className="adm-kosong">Belum ada penjualan.</p>}
+          </Panel>
+        </div>
+        <Panel judul="10 transaksi terakhir" className="adm-gulir">
+          {uang.terakhir.length ? (
             <table className="adm-tabel">
-              <thead><tr><th>Nomor pesanan</th><th>User</th><th>Paket</th><th>Jumlah</th><th>Status</th><th>Waktu</th></tr></thead>
+              <thead><tr><th>Nomor pesanan</th><th>User</th><th>Paket</th><th className="kanan">Jumlah</th><th>Status</th><th>Waktu</th></tr></thead>
               <tbody>
                 {uang.terakhir.map(t => (
                   <tr key={t.order_id}>
                     <td className="mono">{t.order_id}</td><td>{t.email ?? "—"}</td>
-                    <td>{namaPendek(t.paket_id)}</td><td>{rp(t.jumlah)}</td>
-                    <td><span className={`adm-chip st-${t.status}`}>{t.status.toUpperCase()}</span></td><td>{tgl(t.dibuat)}</td>
+                    <td>{namaPendek(t.paket_id)}</td><td className="kanan angka">{rp(t.jumlah)}</td>
+                    <td><Status s={t.status} /></td><td className="adm-redup">{tgl(t.dibuat)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            {!uang.terakhir.length && <p className="adm-kosong">Belum ada transaksi.</p>}
-          </div>
-        </div>
-      </section>
+          ) : <p className="adm-kosong">Belum ada transaksi.</p>}
+        </Panel>
+      </Sek>
 
-      <section className="adm-sek" aria-labelledby="adm-pakai">
-        <h2 id="adm-pakai">Pemakaian</h2>
-        <div className="adm-grid">
-          <Kartu label="Set dikerjain (30 hari)" nilai={angka(totalSet)} />
-          <Kartu label="Soal dijawab (30 hari)" nilai={angka(pemakaian.soalDijawab)} />
-          <Kartu label="Pengguna AI hari ini" nilai={angka(pemakaian.penggunaAiHariIni)} />
-          <Kartu label="Panggilan AI (7 hari)" nilai={angka(Object.values(pemakaian.ai).reduce((s, a) => s + a.minggu, 0))} sub="Perkiraan biaya: dari sini" />
+      {/* Pemakaian */}
+      <Sek id="adm-pakai" ikon={<TrendingUp size={14} />} judul="Pemakaian" meta="30 hari terakhir">
+        <div className="adm-kpis tiga">
+          <Kpi ikon={<BookOpen size={15} />} warna="#E8704F" label="Set dikerjain" nilai={angka(totalSet)} bawah={<Tren data={pemakaian.setPerHari} />} />
+          <Kpi ikon={<CheckCircle2 size={15} />} warna="#8FCB52" label="Soal dijawab" nilai={angka(pemakaian.soalDijawab)} bawah={<span className="adm-redup">dari set yang udah dinilai</span>} />
+          <Kpi ikon={<Bot size={15} />} warna="#6FA8C9" label="Panggilan AI (7 hari)" nilai={angka(totalAiMinggu)} bawah={<span className="adm-redup">{angka(pemakaian.penggunaAiHariIni)} user pakai AI hari ini</span>} />
         </div>
-        <div className="adm-dua">
-          <Batang data={pemakaian.setPerHari} label="Set dikerjain per hari" />
-          <div className="adm-panel">
-            <h3>Pemakaian AI</h3>
-            <table className="adm-tabel">
-              <thead><tr><th>Fitur</th><th>Hari ini</th><th>7 hari</th></tr></thead>
-              <tbody>
+        <div className="adm-dua lebar-kiri">
+          <Panel judul="Set dikerjain per hari" kanan={<Tren data={pemakaian.setPerHari} />}>
+            <Grafik data={pemakaian.setPerHari} label="Set dikerjain per hari" warna="#E8704F" />
+          </Panel>
+          <div className="adm-tumpukan">
+            <Panel judul="Pemakaian AI" kanan={<span className="adm-redup">hari ini · 7 hari</span>}>
+              <div className="adm-ai">
                 {Object.entries(pemakaian.ai).map(([f, a]) => (
-                  <tr key={f}><td>{NAMA_FITUR[f] ?? f}</td><td>{angka(a.hariIni)}</td><td>{angka(a.minggu)}</td></tr>
+                  <div key={f} className="adm-ai-baris">
+                    <span>{NAMA_FITUR[f] ?? f}</span>
+                    <div className="adm-trek"><i style={{ width: `${(a.minggu / maksAi) * 100}%` }} /></div>
+                    <b>{angka(a.hariIni)}</b><b>{angka(a.minggu)}</b>
+                  </div>
                 ))}
-              </tbody>
-            </table>
-            <h3>Set paling sering (30 hari)</h3>
-            <ol className="adm-populer">
-              {pemakaian.populer.map(p => <li key={p.title}><span className="jp">{p.title}</span><b>{angka(p.n)}</b></li>)}
-            </ol>
-            {!pemakaian.populer.length && <p className="adm-kosong">Belum ada set dikerjain.</p>}
+              </div>
+            </Panel>
+            <Panel judul="Set paling sering dikerjain" kanan={<span className="adm-redup">30 hari</span>}>
+              {pemakaian.populer.length ? (
+                <ol className="adm-populer">
+                  {pemakaian.populer.map((p, i) => (
+                    <li key={p.title}>
+                      <span className="adm-rank">{i + 1}</span>
+                      <span className="jp adm-populer-j">{p.title}</span>
+                      <div className="adm-trek"><i style={{ width: `${(p.n / maksPopuler) * 100}%` }} /></div>
+                      <b>{angka(p.n)}×</b>
+                    </li>
+                  ))}
+                </ol>
+              ) : <p className="adm-kosong">Belum ada set dikerjain.</p>}
+            </Panel>
           </div>
         </div>
-      </section>
+      </Sek>
 
-      <section className="adm-sek" aria-labelledby="adm-konten">
-        <h2 id="adm-konten">Konten &amp; kesehatan</h2>
-        <div className="adm-dua">
-          <div className="adm-panel adm-lebar">
-            <h3>Bank soal · {angka(konten.totalBankSoal)} soal</h3>
+      {/* Konten */}
+      <Sek id="adm-konten" ikon={<BookOpen size={14} />} judul="Konten & kesehatan" meta={`${angka(konten.totalBankSoal)} soal di bank`}>
+        <div className="adm-dua lebar-kiri">
+          <Panel judul="Bank soal per level & kategori" className="adm-gulir">
             <table className="adm-tabel adm-matriks">
-              <thead><tr><th /><th className="jp">文字</th><th className="jp">語彙</th><th className="jp">文法</th><th className="jp">読解</th><th>Total</th></tr></thead>
+              <thead><tr><th />{KATEGORI.map(c => <th key={c} className="jp">{c}</th>)}<th>Total</th></tr></thead>
               <tbody>
                 {Object.entries(konten.bankSoal).map(([l, k]) => {
                   const total = Object.values(k).reduce((a, b) => a + b, 0);
                   return (
                     <tr key={l}>
-                      <th>{l}</th>
-                      {(["文字", "語彙", "文法", "読解"] as const).map(c => <td key={c} className={k[c] ? "" : "nol"}>{angka(k[c] ?? 0)}</td>)}
-                      <td><b>{angka(total)}</b></td>
+                      <th><span className="adm-lv" style={{ ["--c" as string]: `var(--${l.toLowerCase()})` }}>{l}</span></th>
+                      {KATEGORI.map(c => {
+                        const n = k[c] ?? 0;
+                        return <td key={c} className={n ? "" : "nol"} style={n ? { ["--a" as string]: (0.08 + (n / maksSel) * 0.42).toFixed(2) } : undefined}>{n ? angka(n) : "0"}</td>;
+                      })}
+                      <td className="tot">{angka(total)}</td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
-          </div>
-          <div className="adm-grid adm-grid-1">
-            <Kartu label="Sesi dengan soal ditandai REVIEW" nilai={konten.sesiReview == null ? "—" : angka(konten.sesiReview)}
-              sub={konten.sesiReview == null ? "Gagal dihitung" : "Cek & betulin teks soalnya"} nada={konten.sesiReview ? "warn" : undefined} />
-            <Kartu label="Error 24 jam" nilai={d.error == null ? "—" : angka(d.error.hari)}
-              sub={d.error == null ? "Jalankan migration error_log dulu" : d.error.hari ? "Lihat daftar di bawah" : "Aman"}
-              nada={d.error == null ? undefined : d.error.hari ? "bad" : "ok"} />
+          </Panel>
+          <div className="adm-tumpukan isi">
+            <Kpi ikon={<FileWarning size={15} />} warna="#D4A04A" label="Sesi dengan soal REVIEW"
+              nilai={konten.sesiReview == null ? "—" : angka(konten.sesiReview)} nada={konten.sesiReview ? "warn" : undefined}
+              bawah={<span className="adm-redup">{konten.sesiReview == null ? "Gagal dihitung" : konten.sesiReview ? "Cek & betulin teks soalnya" : "Gak ada yang ditandai"}</span>} />
+            <Kpi ikon={<AlertTriangle size={15} />} warna="#E0566F" label="Error 24 jam"
+              nilai={d.error == null ? "—" : angka(d.error.hari)} nada={d.error == null ? undefined : d.error.hari ? "bad" : "ok"}
+              bawah={<span className="adm-redup">{d.error == null ? "Jalankan migration error_log dulu" : d.error.hari ? "Lihat daftar di bawah" : "Aman"}</span>} />
           </div>
         </div>
-      </section>
+      </Sek>
 
       {d.gantiTarget && (
-        <section className="adm-sek" aria-labelledby="adm-target">
-          <h2 id="adm-target">Ganti target</h2>
-          <div className="adm-panel">
-            {d.gantiTarget.length === 0 ? <p className="adm-sub">Belum ada yang ganti target.</p> : (
+        <Sek id="adm-target" ikon={<Repeat size={14} />} judul="Ganti target" meta={d.gantiTarget.length ? `${d.gantiTarget.length} terakhir` : undefined}>
+          <Panel className="adm-gulir">
+            {d.gantiTarget.length === 0 ? <p className="adm-kosong">Belum ada yang ganti target.</p> : (
               <table className="adm-tabel">
                 <thead><tr><th>Waktu</th><th>Akun</th><th>Level</th><th>Alasan</th></tr></thead>
                 <tbody>
                   {d.gantiTarget.map(g => (
                     <tr key={g.id}>
-                      <td>{tgl(g.dibuat)}</td>
+                      <td className="adm-redup">{tgl(g.dibuat)}</td>
                       <td className="mono">{g.email ?? "—"}</td>
-                      <td>{g.dari ?? "?"} → {g.ke}</td>
+                      <td><span className="adm-pindah">{g.dari ?? "?"} <span aria-hidden>→</span><span className="sr-only">ke</span> {g.ke}</span></td>
                       <td className="adm-pesan">{g.alasan}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             )}
-          </div>
-        </section>
+          </Panel>
+        </Sek>
       )}
 
       {d.error && d.error.terbaru.length > 0 && (
-        <section className="adm-sek" aria-labelledby="adm-error">
-          <h2 id="adm-error">Error terbaru</h2>
-          <div className="adm-panel">
+        <Sek id="adm-error" ikon={<AlertTriangle size={14} />} judul="Error terbaru">
+          <Panel className="adm-gulir">
             <table className="adm-tabel">
               <thead><tr><th>Waktu</th><th>Sumber</th><th>Halaman</th><th>Pesan</th></tr></thead>
               <tbody>
                 {d.error.terbaru.map((e, i) => (
                   <tr key={i}>
-                    <td>{tgl(e.waktu)}</td>
-                    <td><span className={`adm-chip ${e.sumber === "server" ? "st-gagal" : "st-pending"}`}>{e.sumber.toUpperCase()}</span></td>
+                    <td className="adm-redup">{tgl(e.waktu)}</td>
+                    <td><span className={`adm-chip ${e.sumber === "server" ? "st-gagal" : "st-pending"}`}><i />{e.sumber.toUpperCase()}</span></td>
                     <td className="mono">{e.path ?? e.rute ?? "—"}</td>
-                    <td className="adm-pesan">{e.pesan}</td>
+                    <td className="adm-pesan mono">{e.pesan}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
-        </section>
+          </Panel>
+        </Sek>
       )}
     </main>
   );
