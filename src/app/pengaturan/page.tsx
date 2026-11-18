@@ -15,7 +15,7 @@ import "@/styles/pengaturan.css";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
-  User, Zap, Wand2, Flame, GraduationCap, Bell, CreditCard, Shield, Trash2, ChevronRight, Camera,
+  User, Zap, Wand2, Flame, GraduationCap, Users, Bell, CreditCard, Shield, Trash2, ChevronRight, Camera,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { AuroraBackground, NavRail, BottomNav, UserBar, Breadcrumb } from "@/components/v2";
@@ -40,6 +40,7 @@ import { csvKamus, mdCatatan } from "@/lib/ekspor-data";
 import { KATA_KONFIRMASI } from "@/lib/akun-data";
 import { KUNCI_PAKAI } from "@/lib/kenalan";
 import { DEV_BYPASS } from "@/lib/dev-materi";
+import { DISCORD_INVITE } from "@/lib/komunitas";
 
 type Level = "N1" | "N2" | "N3" | "N4" | "N5";
 const LEVEL: Level[] = ["N5", "N4", "N3", "N2", "N1"];
@@ -51,6 +52,7 @@ const BAGIAN = [
   { id: "ai", Icon: Wand2, t: "Preferensi AI", s: "Cara Sensei AI jawab dan jelasin" },
   { id: "honix", Icon: Flame, t: "Honix", s: "Suara, kapan muncul, dan gerakan" },
   { id: "tutorial", Icon: GraduationCap, t: "Tutorial", s: "Cara belajar di Honix dan tur keliling app" },
+  { id: "komunitas", Icon: Users, t: "Komunitas", s: "Discord Honix: tanya & belajar bareng" },
   { id: "notif", Icon: Bell, t: "Notifikasi", s: "Pengingat belajar dan kabar langganan" },
   { id: "lang", Icon: CreditCard, t: "Langganan", s: "Paket dan masa aktif" },
   { id: "data", Icon: Shield, t: "Privasi & Data", s: "Export data, dokumen, dan bantuan" },
@@ -130,6 +132,7 @@ export default function Pengaturan() {
       onSimpan={async () => { if (await simpanMeta({ ai_pref: pref })) setPrefAwal(pref); }} />,
     honix: <HonixSetelan />,
     tutorial: <Tutorial kabari={kabari} />,
+    komunitas: <Komunitas />,
     notif: <Notif pace={pace} kabari={kabari} />,
     lang: <Langganan />,
     data: <Data kabari={kabari} />,
@@ -431,6 +434,18 @@ function Tutorial({ kabari }: { kabari: (t: string) => void }) {
   );
 }
 
+/* ── Komunitas ── */
+function Komunitas() {
+  return (
+    <div className="rows">
+      <Baris cls="wrap" t="Discord Honix" d="Tanya soal, bahas latihan, dan kenalan sama sesama pejuang JLPT. Gratis buat semua."
+        kanan={<a className="btn btn-p" href={DISCORD_INVITE} target="_blank" rel="noopener noreferrer">Gabung Discord ↗</a>} />
+      <Baris cls="wrap" t="Urusan akun & pembayaran" d="Yang menyangkut data pribadi lewat email aja, jangan di Discord"
+        kanan={<a className="btn btn-g" href="mailto:support@honixjlpt.com">Email support</a>} />
+    </div>
+  );
+}
+
 /* ── Notifikasi ── (yang beneran jalan + "Sedang disiapkan") */
 function Notif({ pace, kabari }: { pace: number; kabari: (t: string) => void }) {
   const l = useLangganan();
@@ -513,7 +528,8 @@ function Data({ kabari }: { kabari: (t: string) => void }) {
         kanan={<button type="button" className="btn btn-g" onClick={() => ekspor("catatan")} disabled={sibuk !== null}>{sibuk === "catatan" ? "Nyiapin…" : "Unduh"}</button>} />
       <Baris cls="wrap" t="Dokumen" d="Cara kami nyimpen & makai datamu"
         kanan={<span className="aksi"><Link className="btn btn-q" href="/privasi">Kebijakan Privasi</Link><Link className="btn btn-q" href="/syarat">Syarat & Ketentuan</Link></span>} />
-      <Baris cls="wrap" t={<>Bantuan<LabelDisiapkan /></>} d="Kontak resmi (email / komunitas) lagi disiapin" />
+      <Baris cls="wrap" t="Bantuan" d="support@honixjlpt.com, atau tanya bareng di Discord Honix"
+        kanan={<span className="aksi"><a className="btn btn-q" href="mailto:support@honixjlpt.com">Email</a><a className="btn btn-q" href={DISCORD_INVITE} target="_blank" rel="noopener noreferrer">Discord ↗</a></span>} />
     </div>
   );
 }
