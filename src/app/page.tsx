@@ -5,7 +5,7 @@ import { judulSet } from "@/lib/judul-set";
 
 import { activityAt, hasPracticeDate, answeredCount, accuracyPercent, dailyActivity, recentPractice } from "@/lib/session-progress";
 
-import { useState, useEffect, useMemo, type ReactNode } from "react";
+import { useState, useEffect, useMemo, useRef, type ReactNode } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
@@ -27,11 +27,7 @@ import { AuroraBackground, NavRail, BottomNav, PeringatanBanner } from "@/compon
 import { useUserStats } from "@/lib/use-user-stats";
 import { daftarSesiUjian, hariMenuju, labelSesi } from "@/lib/sesi-ujian";
 import { PengingatPro } from "@/components/pembayaran/PengingatPro";
-import kotobaN1 from "@/data/kotoba/N1.json";
-import kotobaN2 from "@/data/kotoba/N2.json";
-import kotobaN3 from "@/data/kotoba/N3.json";
-import kotobaN4 from "@/data/kotoba/N4.json";
-import kotobaN5 from "@/data/kotoba/N5.json";
+import { hariKe, type KanjiHarian } from "@/lib/kanji-harian";
 
 interface Session {
   id: string;
@@ -79,66 +75,13 @@ function relativeTime(iso: string): string {
 }
 const scorePct = (s: Session) => (s.score != null && s.total > 0 ? Math.round((s.score / s.total) * 100) : null);
 
-/* Sumber "Kanji Hari Ini". Dulu kartunya dipaku satu kanji (諦) — sama buat
-   semua orang, tiap hari, selamanya. Sekarang dari dataset kotoba beneran,
-   disaring yang ada kanjinya (281 dari 505). Contoh kalimat gak ada di dataset,
-   jadi barisnya cuma dirender kalau memang ada. */
-interface KanjiVocab { word?: string; reading?: string; meaning?: string; example?: string; example_id?: string; jlpt_level?: string }
-interface KanjiHarian { word: string; reading: string; readingDot: string; romaji: string; meaning: string; level: string; example?: string; example_id?: string; highlight?: string }
-
-const KANA_ROMA: Record<string, string> = { \u3042:"a",\u3044:"i",\u3046:"u",\u3048:"e",\u304a:"o",\u304b:"ka",\u304d:"ki",\u304f:"ku",\u3051:"ke",\u3053:"ko",\u304c:"ga",\u304e:"gi",\u3050:"gu",\u3052:"ge",\u3054:"go",\u3055:"sa",\u3057:"shi",\u3059:"su",\u305b:"se",\u305d:"so",\u3056:"za",\u3058:"ji",\u305a:"zu",\u305c:"ze",\u305e:"zo",\u305f:"ta",\u3061:"chi",\u3064:"tsu",\u3066:"te",\u3068:"to",\u3060:"da",\u3062:"ji",\u3065:"zu",\u3067:"de",\u3069:"do",\u306a:"na",\u306b:"ni",\u306c:"nu",\u306d:"ne",\u306e:"no",\u306f:"ha",\u3072:"hi",\u3075:"fu",\u3078:"he",\u307b:"ho",\u3070:"ba",\u3073:"bi",\u3076:"bu",\u3079:"be",\u307c:"bo",\u3071:"pa",\u3074:"pi",\u3077:"pu",\u307a:"pe",\u307d:"po",\u307e:"ma",\u307f:"mi",\u3080:"mu",\u3081:"me",\u3082:"mo",\u3084:"ya",\u3086:"yu",\u3088:"yo",\u3089:"ra",\u308a:"ri",\u308b:"ru",\u308c:"re",\u308d:"ro",\u308f:"wa",\u3092:"o",\u3093:"n",\u30fc:"" };
-const KANA_YOON: Record<string, string> = { \u304d\u3083:"kya",\u304d\u3085:"kyu",\u304d\u3087:"kyo",\u3057\u3083:"sha",\u3057\u3085:"shu",\u3057\u3087:"sho",\u3061\u3083:"cha",\u3061\u3085:"chu",\u3061\u3087:"cho",\u306b\u3083:"nya",\u306b\u3085:"nyu",\u306b\u3087:"nyo",\u3072\u3083:"hya",\u3072\u3085:"hyu",\u3072\u3087:"hyo",\u307f\u3083:"mya",\u307f\u3085:"myu",\u307f\u3087:"myo",\u308a\u3083:"rya",\u308a\u3085:"ryu",\u308a\u3087:"ryo",\u304e\u3083:"gya",\u304e\u3085:"gyu",\u304e\u3087:"gyo",\u3058\u3083:"ja",\u3058\u3085:"ju",\u3058\u3087:"jo",\u3073\u3083:"bya",\u3073\u3085:"byu",\u3073\u3087:"byo",\u3074\u3083:"pya",\u3074\u3085:"pyu",\u3074\u3087:"pyo" };
-function toRomaji(kana: string): string {
-  let out = "", i = 0;
-  while (i < kana.length) {
-    const two = kana.slice(i, i + 2);
-    if (KANA_YOON[two]) { out += KANA_YOON[two]; i += 2; continue; }
-    const ch = kana[i];
-    if (ch === "\u3063") { const r = KANA_YOON[kana.slice(i + 1, i + 3)] || KANA_ROMA[kana[i + 1]] || ""; if (r) out += r[0]; i++; continue; }
-    out += KANA_ROMA[ch] ?? ch;
-    i++;
-  }
-  return out;
-}
-/* \u6311\u3080 + \u3044\u3069\u3080 \u2192 \u3044\u3069\u30fb\u3080 (pisah di batas okurigana). */
-function okuriDot(word: string, reading: string): string {
-  const tail = word.match(/[\u3041-\u3093]+$/);
-  if (!tail || tail[0].length >= reading.length) return reading;
-  const cut = reading.length - tail[0].length;
-  return reading.slice(0, cut) + "\u30fb" + reading.slice(cut);
-}
-const kanjiCore = (word: string) => word.match(/^[\u4e00-\u9fbf\u3005]+/)?.[0] ?? word;
-
-const KANJI_SRC: KanjiVocab[] = [kotobaN5, kotobaN4, kotobaN3, kotobaN2, kotobaN1]
-  .flatMap(d => (d as { vocabulary?: KanjiVocab[] }).vocabulary ?? []);
-const KANJI_POOL: KanjiHarian[] = KANJI_SRC
-  .filter(w => w.word && /[\u4e00-\u9fbf]/.test(w.word) && w.example)
-  .map(w => {
-    const reading = w.reading ?? "";
-    return {
-      word: w.word!, reading, readingDot: okuriDot(w.word!, reading), romaji: toRomaji(reading),
-      meaning: w.meaning ?? "", level: w.jlpt_level ?? "N2",
-      example: w.example, example_id: w.example_id, highlight: kanjiCore(w.word!),
-    };
-  });
-
-/* Dek per level — buat "x / total kata" di kartu Kotoba. Kotoba udah keimport
-   (buat Kanji Hari Ini); Bunpou di-load per level biar gak narik 369 KB. */
-const DEK_KOTOBA: Record<string, KanjiVocab[]> = {
-  N1: (kotobaN1 as { vocabulary?: KanjiVocab[] }).vocabulary ?? [],
-  N2: (kotobaN2 as { vocabulary?: KanjiVocab[] }).vocabulary ?? [],
-  N3: (kotobaN3 as { vocabulary?: KanjiVocab[] }).vocabulary ?? [],
-  N4: (kotobaN4 as { vocabulary?: KanjiVocab[] }).vocabulary ?? [],
-  N5: (kotobaN5 as { vocabulary?: KanjiVocab[] }).vocabulary ?? [],
-};
-type DekBunpou = { patterns: { pattern: string }[] };
-const DEK_BUNPOU: Record<string, () => Promise<DekBunpou>> = {
-  N1: () => import("@/data/bunpou/N1.json").then(m => m.default as DekBunpou),
-  N2: () => import("@/data/bunpou/N2.json").then(m => m.default as DekBunpou),
-  N3: () => import("@/data/bunpou/N3.json").then(m => m.default as DekBunpou),
-  N4: () => import("@/data/bunpou/N4.json").then(m => m.default as DekBunpou),
-  N5: () => import("@/data/bunpou/N5.json").then(m => m.default as DekBunpou),
-};
+/* Kamus (kanji harian + daftar kata/pola per level) diambil dari route statis
+   /kamus-ringkas/*, BUKAN diimport. Dulu 5 file kotoba (2,3 MB) keimport di
+   sini dan jadi ~80% JS Beranda — padahal yang kepake cuma 1 kanji sehari &
+   daftar kata satu level. */
+type RingkasLevel = { kata: string[]; pola: string[] };
+const ambilJson = <T,>(url: string): Promise<T | null> =>
+  fetch(url).then(r => (r.ok ? r.json() as Promise<T> : null)).catch(() => null);
 
 /* Kanji Sering Salah — diturunin dari salah per kata (kotoba_progress):
    kata yang salahnya ≥ benarnya dipecah jadi huruf kanji, tiap kanji dapet
@@ -171,11 +114,6 @@ function renderKjExample(example: string, highlight?: string) {
   return <>{example.slice(0, i)}<span className="hl">{highlight}</span>{example.slice(i + highlight.length)}</>;
 }
 
-/** Hari ke-berapa dalam setahun — bikin kartunya ganti tiap hari, bukan acak
- *  tiap render (biar sehari penuh konsisten). */
-function hariKe(d: Date) {
-  return Math.floor((d.getTime() - new Date(d.getFullYear(), 0, 0).getTime()) / 86_400_000);
-}
 
 /* ── Honix di Beranda (HANDOFF-honix §4 "Beranda", mock Beranda Honix Final) ── */
 
@@ -329,8 +267,17 @@ export default function Home() {
   const [progBunpou, setProgBunpou] = useState<{ n: number; total: number; salah: number } | null>(null);
   const [kanjiSalah, setKanjiSalah] = useState<{ kanji: string[]; salah: number } | null>(null);
 
+  /* Effect di bawah jalan ulang begitu level/tanggal ujian dari profil kebaca
+     (awalnya level bawaan N3). Data Supabase-nya gak tergantung level, jadi
+     diambil SEKALI dan dipakai ulang — dulu seluruh riwayat sesi ketarik dua
+     kali tiap buka Beranda. `putaran` buang hasil putaran lama yang telat
+     selesai, biar progres dek N3 gak nimpa N2. */
+  const mentahRef = useRef<Promise<BerandaMentah | null> | null>(null);
+  const putaran = useRef(0);
+
   useEffect(() => {
     async function load() {
+      const ini = ++putaran.current;
       // tanggal + countdown (browser-only → lolos purity)
       const now = new Date();
       const dateStr = now.toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
@@ -340,21 +287,28 @@ export default function Home() {
       setMeta({ date: dateStr, days, ujian });
       setJam(labelJam(now.getHours()));
       setAcak(Math.floor(Math.random() * 1000));
-      if (KANJI_POOL.length) setKanji(KANJI_POOL[hariKe(now) % KANJI_POOL.length]);
+      /* Kanji Hari Ini jalan sendiri — kartunya gak perlu nunggu data lain. */
+      ambilJson<KanjiHarian>(`/kamus-ringkas/kanji/${hariKe(now)}`).then(k => { if (k) setKanji(k); });
 
+      /* Daftar kata/pola level target & data Supabase diambil BARENGAN. Dulu
+         kamus bunpou ditunggu dulu baru Supabase mulai — dua antrean
+         jaringan yang gak perlu berurutan. */
       const lv = stats.targetLevel;
-      const dekKata = DEK_KOTOBA[lv] ?? DEK_KOTOBA.N2;
-      const dekPola = await (DEK_BUNPOU[lv] ?? DEK_BUNPOU.N2)().catch(() => ({ patterns: [] }) as DekBunpou);
+      const dekP = ambilJson<RingkasLevel>(`/kamus-ringkas/level/${lv}`).then(d => d ?? { kata: [], pola: [] });
 
       /* Data mentah: Supabase, atau data contoh di mode dev tanpa login. */
       let m: BerandaMentah | null;
+      let dek: RingkasLevel;
       if (DEV_BYPASS) {
         const mode = new URLSearchParams(window.location.search).get("dev");
         if (mode === "naik") { try { localStorage.removeItem(LS_STREAK_NAIK); } catch { /* */ } }
-        m = devBeranda(mode, { kata: dekKata.map(w => w.word ?? ""), pola: dekPola.patterns.map(p => p.pattern) });
+        dek = await dekP;
+        m = devBeranda(mode, dek);
       } else {
-        m = await ambilMentah(now);
+        mentahRef.current ??= ambilMentah(now);
+        [m, dek] = await Promise.all([mentahRef.current, dekP]);
       }
+      if (ini !== putaran.current) return;
       if (!m) { setLoading(false); return; }
 
       const special = SPECIAL[m.email.toLowerCase()];
@@ -375,12 +329,12 @@ export default function Home() {
       setKotoba(m.kotobaTotal);
 
       /* Kartu shortcut: progres dek level target + kanji sering salah. */
-      const setKata = new Set(dekKata.map(w => w.word));
-      setProgKotoba({ n: m.kotobaProgres.filter(r => setKata.has(r.word) && r.benar + r.salah > 0).length, total: dekKata.length });
-      const setPola = new Set(dekPola.patterns.map(p => p.pattern));
+      const setKata = new Set(dek.kata);
+      setProgKotoba({ n: m.kotobaProgres.filter(r => setKata.has(r.word) && r.benar + r.salah > 0).length, total: dek.kata.length });
+      const setPola = new Set(dek.pola);
       const polaku = m.bunpouProgres.filter(r => setPola.has(r.pattern) && r.benar + r.salah > 0);
       setProgBunpou({
-        n: polaku.length, total: dekPola.patterns.length,
+        n: polaku.length, total: dek.pola.length,
         // sama dengan status "wrong" di /materi/bunpou
         salah: polaku.filter(r => r.salah >= 2 && r.salah > r.benar).length,
       });
@@ -481,6 +435,9 @@ export default function Home() {
 
   const resumeHref = resume ? (resume.section === "choukai" ? `/choukai/${resume.id}` : `/latihan/${resume.id}`) : "/materi";
   const dash = "—";
+  /* Level & XP dari profil — sebelum kebaca, tulis "—", bukan nilai bawaan
+     (N3 / 0 XP) yang sekejap kemudian berubah. */
+  const lvTampil = stats.loaded ? stats.targetLevel : dash;
   const weakest = useMemo(() => {
     const present = focus.filter(f => f.pct != null && f.n > 0);
     if (!present.length) return null;
@@ -517,22 +474,22 @@ export default function Home() {
           {/* topbar — sapaan "おかえり" pindah ke hero Honix */}
           <div className="bv-top">
             <div className="bv-greet">
-              <p>{meta.date}{meta.days != null && <> · JLPT {stats.targetLevel} · <b>{meta.days} hari lagi</b> menuju ujian</>}</p>
+              <p>{meta.date || "\u00a0"}{meta.days != null && <> · JLPT {lvTampil} · <b>{meta.days} hari lagi</b> menuju ujian</>}</p>
             </div>
             <div className="bv-top-r">
               <button type="button" className="al-help" aria-label="Cara belajar di Honix" data-tur="bantuan" onClick={bukaCaraBelajar}>?</button>
               <span className={`bv-pill streak${faseNaik === "naik" && !kurangiGerak ? " bump" : ""}`}>
                 <span className="fl">🔥</span> <b>{loading ? dash : streakTampil}</b> hari
               </span>
-              <div className="bv-xp"><div className="bv-xp-top"><span title="Level XP Honix — beda sama level JLPT (N1–N5)">Lv Honix {stats.level}</span><b>{stats.xp} / {stats.xpTarget} XP</b></div><div className="bv-xp-bar"><i style={{ width: `${Math.round(stats.xp / stats.xpTarget * 100)}%` }} /></div></div>
-              <span className="bv-lv">{stats.targetLevel}</span>
+              <div className="bv-xp"><div className="bv-xp-top"><span title="Level XP Honix — beda sama level JLPT (N1–N5)">Lv Honix {stats.level}</span><b>{stats.loaded ? stats.xp : dash} / {stats.xpTarget} XP</b></div><div className="bv-xp-bar"><i style={{ width: `${Math.round(stats.xp / stats.xpTarget * 100)}%` }} /></div></div>
+              <span className="bv-lv">{lvTampil}</span>
               {/* HP gak punya menu "Lainnya" lagi — avatar jadi jalan ke Pengaturan (dan Keluar di sana). */}
               <Link href="/pengaturan" aria-label="Pengaturan akun" className={`bv-ava${avatar ? "" : " honix"}`}>{avatar ? <img src={avatar} alt={name} className="bv-ava-img" referrerPolicy="no-referrer" /> : <Image src={honixSrc("kepala")} alt="" width={46} height={46} className="avatar-hx" />}</Link>
             </div>
           </div>
 
           {/* hero Honix */}
-          <section className={`bv-hero${!resume ? " kosong" : ""}${kurangiGerak ? " hx-rm" : ""}`}>
+          <section className={`bv-hero${!resume && !loading ? " kosong" : ""}${kurangiGerak ? " hx-rm" : ""}`}>
             <div className="bv-hero-m">
               <div className="bv-hero-eye">{jam}</div>
               <h1>
@@ -543,6 +500,11 @@ export default function Home() {
                 <span>{sapa}</span>
               </div>
 
+              {/* Selama data belum datang: tempat kosong seukuran kartu Lanjutin.
+                  Di HP kartu ini ±160px — muncul belakangan = semua isi di
+                  bawahnya lompat. Kalau ternyata gak ada yang dilanjutin,
+                  tempatnya ilang (sekali, bukan tiap buka). */}
+              {loading && !resume && <div className="bv-resume bv-resume-skel" aria-hidden="true" />}
               {resume && (
                 <Link href={resumeHref} className="bv-resume">
                   <div className="res-ic">{resume.section === "choukai" ? "🎧" : "✍️"}</div>
@@ -573,14 +535,18 @@ export default function Home() {
             <div className="bv-stat card"><div className="stat-l"><span className="stat-ic" style={{ background: "rgba(107,142,63,0.16)" }}>🎯</span>Akurasi</div><div className="stat-v">{loading || avgScore == null ? dash : avgScore}<span className="u">%</span></div>{delta.akurasiBulan != null
               ? <div className={`stat-d ${delta.akurasiBulan > 0 ? "up" : "flat"}`}>{delta.akurasiBulan > 0 ? `↑ +${delta.akurasiBulan}` : delta.akurasiBulan < 0 ? `↓ −${-delta.akurasiBulan}` : "±0"}% bulan ini</div>
               : <div className="stat-d flat">jawaban benar / dijawab</div>}</div>
-            <div className="bv-stat card"><div className="stat-l"><span className="stat-ic" style={{ background: "rgba(212,160,74,0.15)" }}>🔥</span>Streak</div><div className="stat-v">{loading ? dash : streak}<span className="u">hari</span></div><div className="stat-d flat">Rekor: {stats.rekor} hari</div></div>
+            <div className="bv-stat card"><div className="stat-l"><span className="stat-ic" style={{ background: "rgba(212,160,74,0.15)" }}>🔥</span>Streak</div><div className="stat-v">{loading ? dash : streak}<span className="u">hari</span></div><div className="stat-d flat">Rekor: {stats.loaded ? stats.rekor : dash} hari</div></div>
             <div className="bv-stat card"><div className="stat-l"><span className="stat-ic" style={{ background: "rgba(139,90,140,0.18)" }}>📖</span>Kotoba</div><div className="stat-v">{loading || kotoba == null ? dash : kotoba}<span className="u">kata</span></div><div className={`stat-d ${delta.kotobaMinggu ? "up" : "flat"}`}>{delta.kotobaMinggu ? `↑ +${delta.kotobaMinggu} minggu ini` : "+0 minggu ini"}</div></div>
           </div>
 
           <div className="bv-grid">
             <div className="bv-col">
               {/* Misi harian (Rencana Belajar §3): paling atas kolom kiri, di bawah baris statistik. */}
-              {stats.loaded && <MisiHarian level={stats.targetLevel} rekorStreak={stats.rekor} sesi={semuaSesi} />}
+              {/* Sebelum profil kebaca: kotak kosong seukuran kartu Misi, biar
+                  semua yang di bawahnya gak kedorong pas misinya muncul. */}
+              {stats.loaded
+                ? <MisiHarian level={stats.targetLevel} rekorStreak={stats.rekor} sesi={semuaSesi} />
+                : <div className="rbk rbk-misi"><div className="card misi" aria-busy="true" /></div>}
               {/* Ajakan Discord versi HP/tablet — sidebar turun ke bawah di ≤1000px. */}
               <AjakanDiscord letak="kolom" />
               {/* kanji + quiz */}
@@ -630,8 +596,8 @@ export default function Home() {
               {/* shortcut materi — 3 kartu; Kanji Sering Salah hilang kalau
                   belum ada data salah (user baru) → grid jadi 2 kolom. */}
               <div className={`bv-materi2${kanjiSalah ? " tiga" : ""}`}>
-                <Link href="/materi/kotoba" className="m-card card"><span className="m-glyph">語</span><div className="m-ic goi">📖</div><div className="m-m"><div className="m-t">Kotoba {stats.targetLevel}</div><div className="m-s">{progKotoba ? `${progKotoba.n.toLocaleString("id-ID")} / ${progKotoba.total.toLocaleString("id-ID")} kata ditemuin` : "Kosakata per level"}</div></div>{progKotoba && progKotoba.total > 0 && <div className="m-bar"><i style={{ width: `${Math.round(progKotoba.n / progKotoba.total * 100)}%` }} /></div>}</Link>
-                <Link href="/materi/bunpou" className="m-card card"><span className="m-glyph">文</span><div className="m-ic bun">📐</div><div className="m-m"><div className="m-t">Bunpou {stats.targetLevel}</div><div className="m-s">{progBunpou ? `${progBunpou.n} / ${progBunpou.total} pola${progBunpou.salah ? ` · ${progBunpou.salah} sering salah` : ""}` : "Pola grammar per level"}</div></div>{progBunpou && progBunpou.total > 0 && <div className="m-bar"><i style={{ width: `${Math.round(progBunpou.n / progBunpou.total * 100)}%` }} /></div>}</Link>
+                <Link href="/materi/kotoba" className="m-card card"><span className="m-glyph">語</span><div className="m-ic goi">📖</div><div className="m-m"><div className="m-t">Kotoba {lvTampil}</div><div className="m-s">{progKotoba ? `${progKotoba.n.toLocaleString("id-ID")} / ${progKotoba.total.toLocaleString("id-ID")} kata ditemuin` : "Kosakata per level"}</div></div>{progKotoba && progKotoba.total > 0 && <div className="m-bar"><i style={{ width: `${Math.round(progKotoba.n / progKotoba.total * 100)}%` }} /></div>}</Link>
+                <Link href="/materi/bunpou" className="m-card card"><span className="m-glyph">文</span><div className="m-ic bun">📐</div><div className="m-m"><div className="m-t">Bunpou {lvTampil}</div><div className="m-s">{progBunpou ? `${progBunpou.n} / ${progBunpou.total} pola${progBunpou.salah ? ` · ${progBunpou.salah} sering salah` : ""}` : "Pola grammar per level"}</div></div>{progBunpou && progBunpou.total > 0 && <div className="m-bar"><i style={{ width: `${Math.round(progBunpou.n / progBunpou.total * 100)}%` }} /></div>}</Link>
                 {kanjiSalah && (
                   <Link href={`/latihan/kotoba?level=${stats.targetLevel}`} className="m-card m-warn card"><span className="m-glyph">{kanjiSalah.kanji[0]}</span><div className="m-ic kanji">⚡</div><div className="m-m"><div className="m-t">Kanji Sering Salah</div><div className="m-s"><b>{kanjiSalah.kanji.join(" · ")}</b> salah {kanjiSalah.salah}× · drill 2 menit</div></div></Link>
                 )}
@@ -647,7 +613,7 @@ export default function Home() {
                     <svg width="74" height="74" viewBox="0 0 74 74"><circle cx="37" cy="37" r="32" fill="none" stroke="var(--surface-3)" strokeWidth="6" /><circle cx="37" cy="37" r="32" fill="none" stroke="var(--primary)" strokeWidth="6" strokeLinecap="round" strokeDasharray="201" strokeDashoffset={meta.days != null ? Math.max(0, 201 - 201 * Math.min(1, (365 - Math.min(365, meta.days)) / 365)) : 80} transform="rotate(-90 37 37)" /></svg>
                     <span className="n">{meta.days ?? dash}</span>
                   </div>
-                  <div className="cd-m"><div className="cd-t">JLPT {stats.targetLevel} · {examLabel}</div><div className="cd-s">{meta.days != null ? `${meta.days} hari lagi — jaga pace kamu, konsisten menang.` : ""}</div></div>
+                  <div className="cd-m"><div className="cd-t">JLPT {lvTampil} · {examLabel}</div><div className="cd-s">{meta.days != null ? `${meta.days} hari lagi — jaga pace kamu, konsisten menang.` : ""}</div></div>
                 </div>
               </div>
 

@@ -102,7 +102,10 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
+  /* kamus-ringkas/: potongan kamus statis buat Beranda (kanji harian, daftar
+     kata/pola per level). Isinya sama buat semua orang, jadi gak perlu nanya
+     Supabase "ini siapa" tiap request — itu satu perjalanan jaringan sia-sia. */
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|woff|woff2|ttf|otf)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|kamus-ringkas/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|woff|woff2|ttf|otf)$).*)",
   ],
 };
