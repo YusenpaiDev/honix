@@ -336,7 +336,10 @@ function KotobaPlayer({ level }: { level: string }) {
                 if (locked) { cls += " locked"; if (n === q.ans) cls += " correct"; else if (n === sel) cls += " wrong"; else cls += " dim"; }
                 return (<button className={cls} key={n} onClick={() => pick(n)}>
                   <span className="opt-k">{KEYS[n]}</span>
-                  <span className="opt-b"><span className={`opt-main${q.jpOpt ? " jp" : ""}`}>{o.m}</span><span className="opt-sub">{o.s}</span></span>
+                  {/* "Apa arti kata ini?": tulisan Jepang tiap pilihan baru muncul
+                      SETELAH jawab — sebelumnya pilihan yang benar tulisannya
+                      persis sama kayak soalnya, jadi jawabannya ketebak. */}
+                  <span className="opt-b"><span className={`opt-main${q.jpOpt ? " jp" : ""}`}>{o.m}</span>{(q.type !== "jp2id" || locked) && <span className="opt-sub">{o.s}</span>}</span>
                   <span className="opt-mark">{locked ? (n === q.ans ? "✓" : n === sel ? "✕" : "") : ""}</span>
                 </button>);
               })}
