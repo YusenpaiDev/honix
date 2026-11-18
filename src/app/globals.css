@@ -8545,6 +8545,10 @@ html { scrollbar-gutter: stable; }
 .beranda-v2 .bv-hero-say.love span { white-space: normal; }
 .beranda-v2 .bv-hero .bv-resume { margin: 16px 0 0; background: rgba(11,10,12,0.45); position: relative; z-index: 3; }
 .beranda-v2 .bv-hero .bv-resume::after { display: none; }
+/* Tempat kartu Lanjutin selama data belum datang (tinggi = kartu asli, diukur). */
+.beranda-v2 .bv-hero .bv-resume-skel { min-height: 68px; }
+@media (max-width: 1023px) { .beranda-v2 .bv-hero .bv-resume-skel { min-height: 89px; } }
+@media (max-width: 767px) { .beranda-v2 .bv-hero .bv-resume-skel { min-height: 160px; } }
 .beranda-v2 .bv-hero-bird { position: relative; width: 250px; height: 250px; justify-self: center; margin: -16px 0; }
 .beranda-v2 .bv-hero-bird .hx-box { width: 100%; height: 100%; }
 .beranda-v2 .bv-trail { position: absolute; left: 32%; top: 58%; width: 0; height: 0; }

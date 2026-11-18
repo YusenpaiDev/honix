@@ -3,6 +3,9 @@
 
 .rbk .bub{position:absolute;top:6px;right:40px;max-width:220px;padding:10px 14px;border-radius:14px 14px 4px 14px;background:var(--surface-3);border:1px solid var(--line-2);font-size:13px;line-height:1.4;animation:rbk-rise .5s .2s var(--ease) both;z-index:2}
 .rbk .misi{margin-top:20px;padding:20px;position:relative;z-index:2;background:rgba(18,15,22,.82);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-color:var(--line-2)}
+/* Kotak kosong selama misi belum siap — tingginya ±tinggi kartu Misi asli
+   (diukur: ±346px desktop, ±611px HP), biar isi di bawahnya gak kedorong. */
+.rbk .misi[aria-busy=true]{min-height:340px}
 .rbk .misi-h{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
 .rbk .misi-h>div:first-child{flex:1;min-width:0}
 .rbk .misi-t{white-space:nowrap;font-size:18px;font-weight:600;margin-top:4px;letter-spacing:-.015em}
@@ -52,6 +55,7 @@
 .rbk .misi-hx .bub{position:static;max-width:200px;margin-bottom:-4px}
 
 @media (max-width:767px){
+.rbk .misi[aria-busy=true]{min-height:600px}
   .rbk .misi-t{font-size:16px}
   .rbk .bub{display:none}
   .rbk .steps{grid-template-columns:1fr}

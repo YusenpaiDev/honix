@@ -90,7 +90,7 @@ export function MisiHarian({ level, rekorStreak, sesi }: {
     return () => window.removeEventListener("keydown", esc);
   }, [tampilSheet, tutupSheet]);
 
-  if (!m.siap) return <div className="rbk rbk-misi"><div className="card misi" aria-busy="true" style={{ minHeight: 180 }} /></div>;
+  if (!m.siap) return <div className="rbk rbk-misi"><div className="card misi" aria-busy="true" /></div>;
 
   const P = PACE_MISI[m.tingkat];
   const rencana = ku ? rencanaKurikulum(ku, m.tingkat) : m.rencana;
