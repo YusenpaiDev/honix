@@ -2,7 +2,7 @@
 
 import { KunciHalaman } from "@/components/premium/Gembok";
 
-import { Suspense, useEffect, useState, useCallback } from "react";
+import { Suspense, useEffect, useState, useCallback, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { catatItem, jatuhTempo } from "@/lib/kurikulum-db";
@@ -16,6 +16,9 @@ import { tambahXp, XP } from "@/lib/xp";
 import { PindahLangkah, langkahMisi } from "@/components/rencana/PindahLangkah";
 import { HonixFinishDialog } from "@/components/honix/HonixFinishDialog";
 import { HonixReaction } from "@/components/honix/HonixReaction";
+import { BookmarkPlus, MessageCircle, NotebookPen } from "lucide-react";
+import { PanelBelajar, type PerintahPanel, type TabPanel } from "@/components/latihan/PanelBelajar";
+import { SeleksiAksi } from "@/components/latihan/SeleksiAksi";
 
 
 interface Word { word: string; reading: string; meaning: string; group: string; example?: string; example_id?: string; pos?: string; jlpt_level?: string; }
@@ -203,6 +206,25 @@ function KotobaPlayer({ level }: { level: string }) {
   }, [level, group, count, mode, unitP, seringP, paketP]);
 
   const q = qs && !done ? qs[idx] : null;
+
+  /* Sensei / Kamus / Catatan — cuma bisa dibuka SETELAH jawab (kalau sebelum,
+     jadi jalan pintas nyontek). Lihat components/latihan/PanelBelajar. */
+  const [panelBuka, setPanelBuka] = useState(false);
+  const [tabPanel, setTabPanel] = useState<TabPanel>("chat");
+  const [perintah, setPerintah] = useState<PerintahPanel | null>(null);
+  const tutupPanel = useCallback(() => setPanelBuka(false), []);
+  const suruh = (jenis: PerintahPanel["jenis"], teks: string) => {
+    setPerintah(p => ({ jenis, teks, n: (p?.n ?? 0) + 1 }));
+    setPanelBuka(true);
+  };
+  const stageRef = useRef<HTMLDivElement>(null);
+  const konteksSoal = q && locked && sel !== null ? {
+    question: `${q.ask} ${q.type === "id2jp" ? q.id : q.jp}`,
+    options: q.opts.map(o => o.m),
+    correct: q.opts[q.ans].m,
+    explanation: `${q.word} (${q.read}) = ${q.correctMeaning}. Pilihan user: ${q.opts[sel].m}${sel === q.ans ? " (benar)" : " (salah)"}.`,
+    passage: q.exJp ? `${q.exJp}${q.exTr ? ` — ${q.exTr}` : ""}` : "",
+  } : null;
   const pick = useCallback((n: number) => { if (locked || !q || n >= q.opts.length) return; setSel(n); }, [locked, q]);
   const submit = useCallback(() => {
     if (locked || sel === null || !q) return;
@@ -237,15 +259,15 @@ function KotobaPlayer({ level }: { level: string }) {
       } catch { /* nyusul */ }
     })();
   }, [locked, sel, q, results.length, ok, sessId, level, catat, idx]);
-  const next = useCallback(() => { if (!qs) return; tutupReaksi(); if (idx + 1 >= qs.length) { setDone(true); setPopupSelesai(true); return; } setIdx(i => i + 1); setSel(null); setLocked(false); setStarred(false); window.scrollTo({ top: 0, behavior: "smooth" }); }, [qs, idx, tutupReaksi]);
+  const next = useCallback(() => { if (!qs) return; tutupReaksi(); setPanelBuka(false); if (idx + 1 >= qs.length) { setDone(true); setPopupSelesai(true); return; } setIdx(i => i + 1); setSel(null); setLocked(false); setStarred(false); window.scrollTo({ top: 0, behavior: "smooth" }); }, [qs, idx, tutupReaksi]);
   /* `sesi` bikin URL selalu baru → Page nge-key player pakai query string,
      jadi sesi baru = state bersih (lihat KotobaKeyed). */
   const mulaiSesi = useCallback((query: string) => { router.push(`/latihan/kotoba?${query}&sesi=${Date.now()}`); }, [router]);
 
   useEffect(() => {
-    const h = (e: KeyboardEvent) => { if (done) return; if (["1", "2", "3", "4"].includes(e.key)) pick(+e.key - 1); if (e.key === "Enter") { locked ? next() : submit(); } if (e.key === "Escape") router.push("/materi/kotoba"); };
+    const h = (e: KeyboardEvent) => { if (done || panelBuka || (e.target as Element | null)?.closest?.("input, textarea")) return; if (["1", "2", "3", "4"].includes(e.key)) pick(+e.key - 1); if (e.key === "Enter") { locked ? next() : submit(); } if (e.key === "Escape") router.push("/materi/kotoba"); };
     window.addEventListener("keydown", h); return () => window.removeEventListener("keydown", h);
-  }, [done, locked, pick, next, submit, router]);
+  }, [done, panelBuka, locked, pick, next, submit, router]);
 
   const KEYS = ["A", "B", "C", "D"];
   const pct = qs && qs.length ? Math.round((ok / qs.length) * 100) : 0;
@@ -313,7 +335,7 @@ function KotobaPlayer({ level }: { level: string }) {
       </div>
 
       {q && (
-        <div className="stage">
+        <div className="stage" ref={stageRef}>
           <div className="qmeta">
             {q.status === "wrong" && <span className="qtag qt-weak">⚠️ SERING SALAH</span>}
             <span className="qtag qt-fn">{q.groupTag}</span>
@@ -355,6 +377,11 @@ function KotobaPlayer({ level }: { level: string }) {
                 </div>
                 {q.exJp && <div className="ex"><span className="lbl2">Contoh kalimat</span>{q.exHl && q.exJp.includes(q.exHl) ? <>{q.exJp.split(q.exHl)[0]}<span className="hl">{q.exHl}</span>{q.exJp.split(q.exHl).slice(1).join(q.exHl)}</> : q.exJp}{q.exTr && <span className="tr">{q.exTr}</span>}</div>}
                 <div className="fb-act"><button className="btn btn-p" onClick={next}>{idx + 1 >= qs.length ? "Lihat hasil →" : "Lanjut →"}</button><button className={`btn-star${starred ? " on" : ""}`} onClick={() => setStarred(s => !s)}>{starred ? "★ Ditandai" : "☆ Tandai kata ini"}</button>{reaksi && <HonixReaction key={reaksi.id} kind={reaksi.kind} beruntun={reaksi.beruntun} onSelesai={tutupReaksi} />}</div>
+                <div className="fb-alat">
+                  <button type="button" onClick={() => suruh("tanya", sel === q.ans ? `Kenapa ${q.word} artinya "${q.correctMeaning}"? Kasih contoh lain.` : `Kenapa jawabannya "${q.opts[q.ans].m}", bukan "${q.opts[sel!].m}"?`)}><MessageCircle size={14} strokeWidth={1.9} />Tanya Sensei</button>
+                  <button type="button" onClick={() => suruh("kamus", q.word)}><BookmarkPlus size={14} strokeWidth={1.9} />Simpan ke Kamus</button>
+                  <button type="button" onClick={() => suruh("catat", `${q.word}（${q.read}）= ${q.correctMeaning}${q.exJp ? `\n${q.exJp}${q.exTr ? `\n${q.exTr}` : ""}` : ""}`)}><NotebookPen size={14} strokeWidth={1.9} />Catat</button>
+                </div>
               </div>
             </div>
           )}
@@ -364,6 +391,14 @@ function KotobaPlayer({ level }: { level: string }) {
       {!locked && (
         <div className="subbar"><div className="subbar-in"><div className="kbd-hint"><span><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd> Pilih</span><span><kbd>Enter</kbd> Jawab</span><span><kbd>Esc</kbd> Keluar</span></div><button className="btn btn-p" onClick={submit} disabled={sel === null}>Jawab</button></div></div>
       )}
+
+      {/* Blok teks di soal/pembahasan → Tanya Sensei / Kamus / Catat — setelah jawab aja. */}
+      <SeleksiAksi wadah={stageRef} nonaktif={!locked || panelBuka}
+        onTanya={t => suruh("tanya", `「${t}」 — artinya apa & dipakai gimana di sini?`)}
+        onKamus={t => suruh("kamus", t)}
+        onCatat={t => suruh("catat", `「${t}」\n`)} />
+      <PanelBelajar buka={panelBuka && locked} onTutup={tutupPanel} tab={tabPanel} onTab={setTabPanel}
+        judul={`Latihan Kilat Kotoba ${level}`} sumber={`Latihan Kilat Kotoba ${level}`} soal={konteksSoal} perintah={perintah} />
     </div>
   );
 }

@@ -2,7 +2,7 @@
 
 import { KunciHalaman } from "@/components/premium/Gembok";
 
-import { Suspense, useEffect, useMemo, useState, useCallback } from "react";
+import { Suspense, useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useUserStats } from "@/lib/use-user-stats";
@@ -18,6 +18,9 @@ import { HonixReaction } from "@/components/honix/HonixReaction";
 import { PindahLangkah, langkahMisi } from "@/components/rencana/PindahLangkah";
 import { KartuTeknik } from "@/components/rencana/KartuTeknik";
 import { useTeknikDisembunyikan } from "@/lib/use-teknik";
+import { MessageCircle, NotebookPen } from "lucide-react";
+import { PanelBelajar, type PerintahPanel, type TabPanel } from "@/components/latihan/PanelBelajar";
+import { SeleksiAksi } from "@/components/latihan/SeleksiAksi";
 
 
 interface Ex { jp: string; highlight: string; id: string; }
@@ -202,6 +205,25 @@ function KilatPlayer({ level }: { level: string }) {
 
   const q = qs && !done ? qs[idx] : null;
 
+  /* Sensei / Kamus / Catatan — cuma bisa dibuka SETELAH jawab (kalau sebelum,
+     jadi jalan pintas nyontek). Lihat components/latihan/PanelBelajar. */
+  const [panelBuka, setPanelBuka] = useState(false);
+  const [tabPanel, setTabPanel] = useState<TabPanel>("chat");
+  const [perintah, setPerintah] = useState<PerintahPanel | null>(null);
+  const tutupPanel = useCallback(() => setPanelBuka(false), []);
+  const suruh = (jenis: PerintahPanel["jenis"], teks: string) => {
+    setPerintah(p => ({ jenis, teks, n: (p?.n ?? 0) + 1 }));
+    setPanelBuka(true);
+  };
+  const stageRef = useRef<HTMLDivElement>(null);
+  const konteksSoal = q && locked && sel !== null ? {
+    question: `${q.ask} ${q.pre}（　）${q.post}`,
+    options: q.opts.map(o => o.gm),
+    correct: q.opts[q.ans].gm,
+    explanation: `${q.opts[q.ans].gm}: ${q.correctDisc}. Pilihan user: ${q.opts[sel].gm}${sel === q.ans ? " (benar)" : ` (salah — ${q.opts[sel].d})`}.${q.tip ? ` Tips: ${q.tip}` : ""}`,
+    passage: q.tr ? `Terjemahan kalimat: ${q.tr}` : "",
+  } : null;
+
   const pick = useCallback((n: number) => { if (locked || !q || n >= q.opts.length) return; setSel(n); }, [locked, q]);
 
   // Rekam SATU jawaban langsung ke DB (biar 1 soal aja udah kecatat, walau keluar di tengah).
@@ -256,6 +278,7 @@ function KilatPlayer({ level }: { level: string }) {
 
   const next = useCallback(() => {
     if (!qs) return;
+    setPanelBuka(false);
     if (idx + 1 >= qs.length) { setDone(true); setPopupSelesai(true); tutupReaksi(); return; }
     setIdx(i => i + 1); setSel(null); setLocked(false); setStarred(false); tutupReaksi();
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -274,14 +297,14 @@ function KilatPlayer({ level }: { level: string }) {
   // keyboard
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
-      if (done || teknikBuka) return;
+      if (done || teknikBuka || panelBuka || (e.target as Element | null)?.closest?.("input, textarea")) return;
       if (["1", "2", "3", "4"].includes(e.key)) pick(+e.key - 1);
       if (e.key === "Enter") { locked ? next() : submit(); }
       if (e.key === "Escape") router.push("/materi/bunpou");
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
-  }, [done, teknikBuka, locked, pick, next, submit, router]);
+  }, [done, teknikBuka, panelBuka, locked, pick, next, submit, router]);
 
   const KEYS = ["A", "B", "C", "D"];
   const pct = qs && qs.length ? Math.round((ok / qs.length) * 100) : 0;
@@ -399,7 +422,7 @@ function KilatPlayer({ level }: { level: string }) {
       </div>
 
       {q && (
-        <div className="stage">
+        <div className="stage" ref={stageRef}>
           <div className="qmeta">
             {q.status === "wrong" && <span className="qtag qt-weak">⚠️ SERING SALAH</span>}
             <span className="qtag qt-fn">{q.groupJp} · {q.groupName.toUpperCase()}</span>
@@ -461,6 +484,10 @@ function KilatPlayer({ level }: { level: string }) {
                   <button className={`btn-star${starred ? " on" : ""}`} onClick={() => setStarred(s => !s)}>{starred ? "★ Ditandai" : "☆ Tandai pola ini"}</button>
                   {reaksi && <HonixReaction key={reaksi.id} kind={reaksi.kind} beruntun={reaksi.beruntun} onSelesai={tutupReaksi} />}
                 </div>
+                <div className="fb-alat">
+                  <button type="button" onClick={() => suruh("tanya", sel === q.ans ? `Kapan pakai ${q.opts[q.ans].gm}? Kasih contoh lain.` : `Kenapa ${q.opts[q.ans].gm}, bukan ${q.opts[sel!].gm}?`)}><MessageCircle size={14} strokeWidth={1.9} />Tanya Sensei</button>
+                  <button type="button" onClick={() => suruh("catat", `${q.opts[q.ans].gm} — ${q.correctDisc}\n${q.pre}${q.opts[q.ans].gm}${q.post}${q.tr ? `\n${q.tr}` : ""}`)}><NotebookPen size={14} strokeWidth={1.9} />Catat</button>
+                </div>
               </div>
             </div>
           )}
@@ -479,6 +506,14 @@ function KilatPlayer({ level }: { level: string }) {
           </div>
         </div>
       )}
+
+      {/* Blok teks di soal/pembahasan → Tanya Sensei / Kamus / Catat — setelah jawab aja. */}
+      <SeleksiAksi wadah={stageRef} nonaktif={!locked || panelBuka}
+        onTanya={t => suruh("tanya", `「${t}」 — artinya apa & dipakai gimana di sini?`)}
+        onKamus={t => suruh("kamus", t)}
+        onCatat={t => suruh("catat", `「${t}」\n`)} />
+      <PanelBelajar buka={panelBuka && locked} onTutup={tutupPanel} tab={tabPanel} onTab={setTabPanel}
+        judul={`Latihan Kilat Bunpou ${level}`} sumber={`Latihan Kilat Bunpou ${level}`} soal={konteksSoal} perintah={perintah} />
     </div>
   );
 }
