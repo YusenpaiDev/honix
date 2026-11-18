@@ -5,6 +5,12 @@ import { createClient } from "@/lib/supabase/client";
 import { tanggalLokal, EVENT_AKTIVITAS } from "@/lib/aktivitas";
 import { EVENT_WAKTU } from "@/lib/waktu-belajar";
 import { gabungHari, tambahHari, type HariBelajar } from "@/lib/waktu-kalender";
+import { bacaCache, simpanCache } from "@/lib/cache-lokal";
+import { uidLokal } from "@/lib/uid-lokal";
+
+/* Salinan terakhir buat tampilan instan (kalender cap & kartu Misi). */
+const CACHE_WAKTU = "waktu-v1";
+type SalinanWaktu = { hari: HariBelajar[]; pace: number };
 
 /* Ditulis langsung (bukan diimport) biar Next bisa buang cabang dev di build. */
 const DEV_BYPASS = process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_DEV_BYPASS_AUTH === "1";
@@ -32,7 +38,13 @@ export function useWaktuBelajar(): WaktuBelajar {
   useEffect(() => {
     if (DEV_BYPASS) return;
     let batal = false;
+    let segar = false;
     let jeda: ReturnType<typeof setTimeout> | undefined;
+    uidLokal().then(uid => {
+      const c = bacaCache<SalinanWaktu>(CACHE_WAKTU, uid);
+      if (!c || batal || segar) return;
+      setHasil({ siap: true, gagal: false, hari: new Map(c.hari.map(h => [h.tanggal, h])), hariIni: tanggalLokal(), pace: c.pace });
+    });
     const ambil = async () => {
       const hariIni = tanggalLokal();
       const supabase = createClient();
@@ -44,13 +56,12 @@ export function useWaktuBelajar(): WaktuBelajar {
       ]);
       const pace = Number(user.user_metadata?.daily_goal_minutes);
       if (batal) return;
-      setHasil({
-        siap: true,
-        gagal: Boolean(waktu.error && aktivitas.error),
-        hari: gabungHari(waktu.data ?? [], aktivitas.data ?? []),
-        hariIni,
-        pace: Number.isFinite(pace) && pace > 0 ? pace : PACE_BAWAAN,
-      });
+      segar = true;
+      const hari = gabungHari(waktu.data ?? [], aktivitas.data ?? []);
+      const paceAkhir = Number.isFinite(pace) && pace > 0 ? pace : PACE_BAWAAN;
+      const gagal = Boolean(waktu.error && aktivitas.error);
+      setHasil({ siap: true, gagal, hari, hariIni, pace: paceAkhir });
+      if (!gagal) simpanCache<SalinanWaktu>(CACHE_WAKTU, user.id, { hari: [...hari.values()], pace: paceAkhir });
     };
     const muat = () => ambil().catch(() => { if (!batal) setHasil(h => ({ ...h, siap: true, gagal: true, hariIni: tanggalLokal() })); });
     /* Menit/aktivitas baru kesimpen, atau tab dibuka lagi → ambil ulang (ditunda dikit biar gak dobel). */

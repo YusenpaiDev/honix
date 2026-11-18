@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { hapusCacheLokal } from "@/lib/cache-lokal";
 
 /**
  * Keluar akun beneran. Dulu "Keluar" cuma link ke /login — sesinya tetap
@@ -18,6 +19,8 @@ export function TombolKeluar({ className = "nav-item" }: { className?: string })
     setProses(true); setGagal(false);
     const { error } = await createClient().auth.signOut();
     if (error) { setProses(false); setGagal(true); return; }
+    /* Salinan data akun ini (tampilan instan) jangan ketinggalan buat akun berikutnya. */
+    hapusCacheLokal();
     window.location.href = "/login";
   };
 

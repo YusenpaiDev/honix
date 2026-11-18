@@ -28,6 +28,8 @@ import { useUserStats } from "@/lib/use-user-stats";
 import { daftarSesiUjian, hariMenuju, labelSesi } from "@/lib/sesi-ujian";
 import { PengingatPro } from "@/components/pembayaran/PengingatPro";
 import { hariKe, type KanjiHarian } from "@/lib/kanji-harian";
+import { bacaCache, simpanCache } from "@/lib/cache-lokal";
+import { uidLokal } from "@/lib/uid-lokal";
 
 interface Session {
   id: string;
@@ -80,6 +82,22 @@ const scorePct = (s: Session) => (s.score != null && s.total > 0 ? Math.round((s
    sini dan jadi ~80% JS Beranda — padahal yang kepake cuma 1 kanji sehari &
    daftar kata satu level. */
 type RingkasLevel = { kata: string[]; pola: string[] };
+
+/* Salinan isi Beranda buat tampilan instan (lihat cache-lokal.ts). */
+const CACHE_BERANDA = "beranda-v1";
+interface SalinanBeranda {
+  tanggal: string;
+  name: string; loveNote: string | null; avatar: string | null;
+  kotoba: number | null;
+  progKotoba: { n: number; total: number } | null;
+  progBunpou: { n: number; total: number; salah: number } | null;
+  kanjiSalah: { kanji: string[]; salah: number } | null;
+  sessionError: boolean;
+  sessions: Session[]; semuaSesi: SesiSkor[];
+  totalSoal: number; resume: Session | null; avgScore: number | null;
+  focus: Focus[]; week: WeekDay[]; hariIni: number; activeDays: number;
+  delta: { soalMinggu: number; akurasiBulan: number | null; kotobaMinggu: number | null; aktivitas: number | null };
+}
 const ambilJson = <T,>(url: string): Promise<T | null> =>
   fetch(url).then(r => (r.ok ? r.json() as Promise<T> : null)).catch(() => null);
 
@@ -275,6 +293,33 @@ export default function Home() {
   const mentahRef = useRef<Promise<BerandaMentah | null> | null>(null);
   const putaran = useRef(0);
 
+  /* ── Tampilan instan ──
+     Semua yang dipajang Beranda dirangkum jadi satu objek. Data segar →
+     objek ini → state, dan disalin ke localStorage. Buka berikutnya: salinan
+     itu langsung dipajang, data segar nyusul nimpa. Yang tergantung tanggal
+     (grafik 7 hari, "hari ini udah N aktivitas") cuma dipakai kalau salinannya
+     dari hari ini. */
+  const segarRef = useRef(false);
+  const terapkan = (x: SalinanBeranda, hariSama = true) => {
+    setName(x.name); setLoveNote(x.loveNote); setAvatar(x.avatar);
+    setKotoba(x.kotoba); setProgKotoba(x.progKotoba); setProgBunpou(x.progBunpou); setKanjiSalah(x.kanjiSalah);
+    setSessionError(x.sessionError); setSessions(x.sessions); setSemuaSesi(x.semuaSesi);
+    setTotalSoal(x.totalSoal); setResume(x.resume); setAvgScore(x.avgScore); setFocus(x.focus);
+    if (hariSama) { setWeek(x.week); setHariIni(x.hariIni); setActiveDays(x.activeDays); setDelta(x.delta); }
+    setLoading(false);
+  };
+  useEffect(() => {
+    if (DEV_BYPASS) return;
+    let batal = false;
+    uidLokal().then(uid => {
+      const c = bacaCache<SalinanBeranda>(CACHE_BERANDA, uid);
+      if (!c || batal || segarRef.current) return;
+      terapkan(c, c.tanggal === tanggalLokal());
+    });
+    return () => { batal = true; };
+  // sekali pas buka aja — terapkan cuma manggil setter
+  }, []);
+
   useEffect(() => {
     async function load() {
       const ini = ++putaran.current;
@@ -312,9 +357,6 @@ export default function Home() {
       if (!m) { setLoading(false); return; }
 
       const special = SPECIAL[m.email.toLowerCase()];
-      if (special) { setName(special.name); setLoveNote(special.note); }
-      else setName(m.nama.charAt(0).toUpperCase() + m.nama.slice(1));
-      setAvatar(m.avatar);
 
       /* Sesi pertama hari ini → kandidat banner streak naik (sekali sehari). */
       const terakhir = m.aktifTerakhir;
@@ -326,32 +368,17 @@ export default function Home() {
           if (!sudah) setKandidatNaik(true);
         }
       }
-      setKotoba(m.kotobaTotal);
 
       /* Kartu shortcut: progres dek level target + kanji sering salah. */
       const setKata = new Set(dek.kata);
-      setProgKotoba({ n: m.kotobaProgres.filter(r => setKata.has(r.word) && r.benar + r.salah > 0).length, total: dek.kata.length });
       const setPola = new Set(dek.pola);
       const polaku = m.bunpouProgres.filter(r => setPola.has(r.pattern) && r.benar + r.salah > 0);
-      setProgBunpou({
-        n: polaku.length, total: dek.pola.length,
-        // sama dengan status "wrong" di /materi/bunpou
-        salah: polaku.filter(r => r.salah >= 2 && r.salah > r.benar).length,
-      });
-      setKanjiSalah(kanjiSeringSalah(m.kotobaProgres));
 
-      setSessionError(Boolean(m.sessionError));
       const sess = m.sessions as unknown as Session[];
       const practiced = recentPractice(sess);       // sesi yang udah dikerjain
       // Riwayat: sembunyiin import bank soal yang belum dikerjain (materi/riwayat split)
       const riwayat = recentPractice(sess);
-
-      setSessions(riwayat.slice(0, 4));
-      setSemuaSesi(sess as unknown as SesiSkor[]);
-      setTotalSoal(sess.reduce((s, r) => s + (r.total ?? 0), 0)); // ukuran library soal (bank + analisis)
-      setResume(riwayat.find(r => r.score == null) ?? riwayat[0] ?? sess[0] ?? null);
       const rata = accuracyPercent;
-      setAvgScore(rata(practiced));
 
       /* Selisih: soal minggu ini, akurasi bulan ini vs bulan lalu. */
       const seminggu = now.getTime() - 7 * 86_400_000;
@@ -370,10 +397,6 @@ export default function Home() {
           b.a += v.a ?? 0; b.c += v.c ?? 0;
         }
       }
-      setFocus(FOCUS_CATS.map(c => {
-        const b = catAgg[c.jp];
-        return { ...c, pct: b && b.a > 0 ? Math.round((b.c / b.a) * 100) : null, n: b?.a ?? 0 };
-      }));
 
       /* Aktivitas 7 hari terakhir (soal dijawab per hari, dari stats.answered) */
       const perDay: Record<string, number> = {};
@@ -395,17 +418,50 @@ export default function Home() {
       }
       const maxV = Math.max(1, ...wk.map(w => w.v));
       wk.forEach(w => (w.h = w.v > 0 ? Math.max(8, Math.round((w.v / maxV) * 100)) : 0));
-      setWeek(wk);
-      setHariIni(wk[wk.length - 1]?.v ?? 0);
-      setActiveDays(wk.filter(w => w.v > 0).length);
       const mingguIni = wk.reduce((s, w) => s + w.v, 0);
-      setDelta({
-        soalMinggu,
-        akurasiBulan: akBulanIni != null && akBulanLalu != null ? akBulanIni - akBulanLalu : null,
-        kotobaMinggu: m.kotobaMingguIni,
-        aktivitas: mingguLalu > 0 ? Math.round((mingguIni - mingguLalu) / mingguLalu * 100) : null,
-      });
 
+      const snap: SalinanBeranda = {
+        tanggal: hariIniStr,
+        name: special ? special.name : m.nama.charAt(0).toUpperCase() + m.nama.slice(1),
+        loveNote: special ? special.note : null,
+        avatar: m.avatar,
+        kotoba: m.kotobaTotal,
+        progKotoba: { n: m.kotobaProgres.filter(r => setKata.has(r.word) && r.benar + r.salah > 0).length, total: dek.kata.length },
+        progBunpou: {
+          n: polaku.length, total: dek.pola.length,
+          // sama dengan status "wrong" di /materi/bunpou
+          salah: polaku.filter(r => r.salah >= 2 && r.salah > r.benar).length,
+        },
+        kanjiSalah: kanjiSeringSalah(m.kotobaProgres),
+        sessionError: Boolean(m.sessionError),
+        sessions: riwayat.slice(0, 4),
+        semuaSesi: sess as unknown as SesiSkor[],
+        totalSoal: sess.reduce((s, r) => s + (r.total ?? 0), 0), // ukuran library soal (bank + analisis)
+        resume: riwayat.find(r => r.score == null) ?? riwayat[0] ?? sess[0] ?? null,
+        avgScore: rata(practiced),
+        focus: FOCUS_CATS.map(c => {
+          const b = catAgg[c.jp];
+          return { ...c, pct: b && b.a > 0 ? Math.round((b.c / b.a) * 100) : null, n: b?.a ?? 0 };
+        }),
+        week: wk,
+        hariIni: wk[wk.length - 1]?.v ?? 0,
+        activeDays: wk.filter(w => w.v > 0).length,
+        delta: {
+          soalMinggu,
+          akurasiBulan: akBulanIni != null && akBulanLalu != null ? akBulanIni - akBulanLalu : null,
+          kotobaMinggu: m.kotobaMingguIni,
+          aktivitas: mingguLalu > 0 ? Math.round((mingguIni - mingguLalu) / mingguLalu * 100) : null,
+        },
+      };
+      segarRef.current = true;
+      terapkan(snap);
+      if (!DEV_BYPASS) {
+        const uid = await uidLokal();
+        /* Salinan cuma bawa sesi 35 hari terakhir — itu jendela yang dipakai
+           Misi & Perkiraan (30 hari); seluruh riwayat bisa ratusan KB. */
+        const batasSesi = now.getTime() - 35 * 86_400_000;
+        if (uid) simpanCache(CACHE_BERANDA, uid, { ...snap, semuaSesi: sess.filter(r => !(t(r) < batasSesi)) as unknown as SesiSkor[] });
+      }
       setLoading(false);
     }
     load();

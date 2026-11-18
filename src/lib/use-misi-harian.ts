@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/client";
 import { tanggalLokal } from "@/lib/aktivitas";
 import { useWaktuBelajar } from "@/lib/use-waktu-belajar";
 import { PACE_MISI, rencanaMisi, statusBolong, tingkatPace, type JumlahSalah } from "@/lib/misi-harian";
+import { bacaCache, simpanCache } from "@/lib/cache-lokal";
+import { uidLokal } from "@/lib/uid-lokal";
 
 const DEV_BYPASS = process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_DEV_BYPASS_AUTH === "1";
 
@@ -34,6 +36,10 @@ interface DataMisi {
   dev: string | null;
 }
 
+/* Salinan misi hari ini (per level) buat tampilan instan — kemarin gak dipakai. */
+const CACHE_MISI = "misi-v1";
+type SalinanMisi = { tanggal: string; level: string; d: DataMisi };
+
 const KOSONG: DataMisi = { siap: false, langkah: 0, penyelamatSelesai: false, salah: { kata: 0, pola: 0 }, lebihUlang: false, ditanya: null, dev: null };
 const seringSalah = (r: { benar: number | null; salah: number | null }) => (r.salah ?? 0) >= 2 && (r.salah ?? 0) > (r.benar ?? 0);
 
@@ -53,6 +59,12 @@ export function useMisiHarian(level: string) {
           salah: dev === "3" ? { kata: 0, pola: 0 } : { kata: 9, pola: 3 } });
         return;
       }
+      let segar = false;
+      uidLokal().then(uid => {
+        const c = bacaCache<SalinanMisi>(CACHE_MISI, uid);
+        if (!c || batal || segar || c.tanggal !== tanggalLokal() || c.level !== level) return;
+        setD(c.d);
+      });
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { if (!batal) setD({ ...KOSONG, siap: true }); return; }
@@ -64,7 +76,8 @@ export function useMisiHarian(level: string) {
       const md = user.user_metadata ?? {};
       const sampai = typeof md.misi_lebih_ulang_sampai === "string" ? md.misi_lebih_ulang_sampai : "";
       if (batal) return;
-      setD({
+      segar = true;
+      const baru: DataMisi = {
         siap: true,
         langkah: misi.data?.langkah ?? 0,
         penyelamatSelesai: misi.data?.penyelamat_selesai ?? false,
@@ -72,7 +85,9 @@ export function useMisiHarian(level: string) {
         lebihUlang: sampai >= tanggalLokal(),
         ditanya: typeof md.bolong_ditanya === "string" ? md.bolong_ditanya : null,
         dev: null,
-      });
+      };
+      setD(baru);
+      simpanCache<SalinanMisi>(CACHE_MISI, user.id, { tanggal: tanggalLokal(), level, d: baru });
     })().catch(() => { if (!batal) setD({ ...KOSONG, siap: true }); });
     return () => { batal = true; };
   }, [level]);
