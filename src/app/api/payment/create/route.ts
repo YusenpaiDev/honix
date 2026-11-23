@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createAdmin } from "@supabase/supabase-js";
 import { PAKET, adalahPaket, buatOrderId } from "@/lib/paket";
+import { buatPembayaranIpaymu, konfigIpaymu } from "@/lib/ipaymu";
+
+/* Gateway yang dipakai: GATEWAY_BAYAR=ipaymu → iPaymu (halaman bayar redirect),
+   selain itu Midtrans Snap. Jalur Midtrans sengaja gak dibuang — kalau akunnya
+   aktif, tinggal ganti env ini, gak perlu ngoding ulang. */
+const IPAYMU = process.env.GATEWAY_BAYAR === "ipaymu";
 
 /* Sandbox vs produksi cuma beda host. Default-nya sandbox: kalau env-nya
    kelupaan di-set waktu deploy, yang kejadian adalah pembayaran gak jalan —
@@ -36,7 +42,11 @@ export async function POST(req: NextRequest) {
     }
 
     const serverKey = process.env.MIDTRANS_SERVER_KEY?.trim();
-    if (!serverKey) {
+    if (IPAYMU && !konfigIpaymu().siap) {
+      console.error("[payment] IPAYMU_VA / IPAYMU_API_KEY belum di-set");
+      return NextResponse.json({ error: "Pembayaran belum aktif. Hubungi kami dulu ya." }, { status: 503 });
+    }
+    if (!IPAYMU && !serverKey) {
       /* Kejadian nyata sebelumnya: env-nya gak pernah di-set, dan kodenya
          nembak Midtrans pakai `undefined` — signature-nya gak akan pernah
          cocok, dan errornya cuma kelihatan di log. Ditolak di depan aja. */
@@ -69,12 +79,43 @@ export async function POST(req: NextRequest) {
        lamanya tetap dibaca supaya deployment yang udah nyetel itu gak pecah. */
     const situs = (process.env.SITE_URL ?? process.env.NEXT_PUBLIC_SITE_URL ?? "")
       .replace(/\/$/, "");
+
+    if (IPAYMU) {
+      /* iPaymu butuh URL lengkap buat balik & ngabarin — tanpa SITE_URL,
+         uang bisa masuk tapi kabarnya gak pernah sampai. */
+      if (!/^https?:\/\//.test(situs)) {
+        console.error("[payment] SITE_URL belum di-set — iPaymu gak bisa ngabarin hasil bayar");
+        await admin().from("transaksi").update({ status: "gagal", diperbarui: new Date().toISOString() }).eq("order_id", orderId);
+        return NextResponse.json({ error: "Pembayaran belum aktif. Hubungi kami dulu ya." }, { status: 503 });
+      }
+      const { ok, hasil } = await buatPembayaranIpaymu({
+        orderId, nama: paket.nama, ringkas: paket.ringkas, harga: paket.harga,
+        pembeli: { nama: profil?.username || user.email?.split("@")[0] || "Pengguna", email: user.email },
+        returnUrl: `${situs}/premium/sukses?order_id=${orderId}`,
+        cancelUrl: `${situs}/premium`,
+        notifyUrl: `${situs}/api/payment/webhook/ipaymu`,
+      });
+      if (!ok || !hasil.Data?.Url) {
+        console.error("[payment] iPaymu nolak:", hasil);
+        await admin().from("transaksi")
+          .update({ status: "gagal", midtrans: { gateway: "ipaymu", tolak: hasil }, diperbarui: new Date().toISOString() })
+          .eq("order_id", orderId);
+        return NextResponse.json({ error: "Gagal membuat transaksi. Coba lagi." }, { status: 502 });
+      }
+      /* SessionID disimpan buat dicocokin waktu iPaymu ngabarin hasilnya.
+         (Kolomnya masih bernama `midtrans` — isinya payload gateway mentah.) */
+      await admin().from("transaksi")
+        .update({ midtrans: { gateway: "ipaymu", sesi: hasil.Data.SessionID } })
+        .eq("order_id", orderId);
+      return NextResponse.json({ gateway: "ipaymu", url: hasil.Data.Url, order_id: orderId });
+    }
+
     const res = await fetch(SNAP_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json",
-        Authorization: "Basic " + Buffer.from(serverKey + ":").toString("base64"),
+        Authorization: "Basic " + Buffer.from(serverKey! + ":").toString("base64"),
       },
       body: JSON.stringify({
         transaction_details: { order_id: orderId, gross_amount: paket.harga },

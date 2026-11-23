@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { PaketId } from "@/lib/paket";
 
@@ -35,17 +35,26 @@ function muatSnap(clientKey: string, produksi: boolean) {
 }
 
 /**
- * Buka popup Midtrans buat satu paket. Dipakai /premium dan tombol
+ * Mulai bayar satu paket: popup Midtrans Snap, atau pindah ke halaman bayar
+ * iPaymu (GATEWAY_BAYAR=ipaymu di server). Dipakai /premium dan tombol
  * "Perpanjang" di /langganan — dulu logikanya cuma hidup di halaman harga.
  *
  * Aktivasi Pro TIDAK dikerjain di sini — callback Snap jalan di browser dan
- * gampang dipalsukan. Yang mengaktifkan cuma webhook dari Midtrans ke server.
+ * gampang dipalsukan. Yang mengaktifkan cuma webhook dari gateway ke server.
  * Callback ini murni buat mindahin halaman.
  */
 export function useBayar() {
   const router = useRouter();
   const [paying, setPaying] = useState<PaketId | null>(null);
   const [galat, setGalat] = useState<string | null>(null);
+
+  /* Balik pakai tombol Back dari halaman iPaymu → browser mulihin halaman
+     dari cache, tombolnya masih "memproses". Lepasin lagi. */
+  useEffect(() => {
+    const balik = (e: PageTransitionEvent) => { if (e.persisted) setPaying(null); };
+    window.addEventListener("pageshow", balik);
+    return () => window.removeEventListener("pageshow", balik);
+  }, []);
 
   async function bayar(paketId: PaketId) {
     setGalat(null);
@@ -58,6 +67,13 @@ export function useBayar() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Gagal memulai pembayaran.");
+
+      /* iPaymu: halaman bayarnya di situs iPaymu. Selesai bayar, iPaymu
+         balikin ke /premium/sukses?order_id=… yang nungguin Pro nyala. */
+      if (data.gateway === "ipaymu" && typeof data.url === "string") {
+        window.location.assign(data.url);
+        return; // `paying` dibiarin nyala — halamannya lagi pindah
+      }
 
       await muatSnap(data.client_key, data.produksi);
       if (!window.snap) throw new Error("Pembayaran gak bisa dibuka. Coba lagi.");
