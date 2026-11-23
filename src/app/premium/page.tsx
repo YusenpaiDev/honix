@@ -152,7 +152,7 @@ const KONTAK_SUPPORT = "support@honixjlpt.com";
 
 const FAQ = [
   { q: "Gimana cara bayarnya?",
-    a: `Lewat Midtrans: QRIS, e-wallet, transfer virtual account, atau kartu. Pro aktif otomatis begitu pembayaran dikonfirmasi. Ada kendala? Kirim email ke ${KONTAK_SUPPORT}.` },
+    a: `Lewat iPaymu: QRIS, virtual account bank, dan metode lain yang tersedia di halaman bayar. Pro aktif otomatis begitu pembayaran dikonfirmasi. Ada kendala? Kirim email ke ${KONTAK_SUPPORT}.` },
   { q: "Bisa berhenti kapan saja?",
     a: "Bisa. Pro itu bulanan — kalau gak diperpanjang, akses Pro berhenti di akhir periode dan akses belajar berakhir. Gak ada ikatan." },
   { q: "Kalau langganan habis, kotoba & catatan saya hilang?",

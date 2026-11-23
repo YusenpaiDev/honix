@@ -22,7 +22,7 @@ const BAGIAN: Bagian[] = [
         <li><b>Aktivitas belajar:</b> jawaban, skor, dan riwayat latihan; progres Kotoba &amp; Bunpou; hari aktif (streak), XP, lama belajar per hari, progres misi harian, dan jawabanmu kalau ditanya kenapa absen belajar (opsional).</li>
         <li><b>Isi yang kamu buat:</b> kosakata di Kamus, catatan, soal yang kamu edit atau tandai review, dan foto profil yang kamu unggah.</li>
         <li><b>Pemakaian fitur AI:</b> jumlah pemakaian chat Sensei, furigana, dan lembar tugas per hari.</li>
-        <li><b>Transaksi:</b> nomor pesanan, paket, nominal, status, waktu, dan notifikasi pembayaran dari Midtrans (buat audit). <b>Kami tidak menyimpan data kartu, rekening, atau PIN</b> — itu ditangani Midtrans.</li>
+        <li><b>Transaksi:</b> nomor pesanan, paket, nominal, status, waktu, dan notifikasi pembayaran dari iPaymu (buat audit). <b>Kami tidak menyimpan data kartu, rekening, atau PIN</b> — itu ditangani iPaymu.</li>
         <li><b>Pengaturan di perangkat:</b> beberapa preferensi (mis. pengaturan Honix, tutorial yang sudah dilihat) disimpan juga di browser kamu (localStorage) supaya aplikasi cepat terbuka.</li>
       </ul>
       <p>Kami <b>tidak</b> memakai iklan, pelacak analytics pihak ketiga, atau cookie iklan. Cookie yang ada hanya cookie login supaya kamu tetap masuk.</p>
@@ -46,7 +46,7 @@ const BAGIAN: Bagian[] = [
         <li><b>Supabase</b> — database, login, dan penyimpanan file.</li>
         <li><b>Vercel</b> — server tempat aplikasi berjalan.</li>
         <li><b>Anthropic (Claude)</b> — model AI untuk chat Sensei, furigana, dan lembar tugas. Saat kamu memakai fitur ini, pertanyaanmu dan teks soal yang relevan dikirim ke Anthropic untuk diproses. Untuk chat Sensei, ikut dikirim ringkasan progres belajarmu (level target, sisa hari ke ujian, akurasi per bagian, kata dan pola yang sering salah, streak, dan menit belajar seminggu terakhir), tanpa nama dan email. Jangan masukkan data pribadi sensitif ke chat.</li>
-        <li><b>Midtrans</b> — pemrosesan pembayaran.</li>
+        <li><b>iPaymu</b> — pemrosesan pembayaran.</li>
         <li><b>Resend</b> — mengirim email pemberitahuan ke admin, mis. saat kamu mengganti level target (berisi email, nama, dan alasanmu).</li>
         <li><b>Google</b> — login dengan akun Google (kalau kamu memilihnya).</li>
       </ul>
