@@ -1,4 +1,4 @@
-# Tur Honix — cara pakai Sensei JLPT
+# Tur Honix — cara pakai Honix JLPT
 
 Status: disetujui di chat 2026-10-09. Desain & copy dari Claude (belum ada mock).
 
@@ -39,7 +39,7 @@ Hanya dipasang lewat `NavRail`/`BottomNav` → otomatis gak muncul di player lat
 
 ## Pengaturan → Honix
 Dua baris baru di `HonixSection`:
-- **Cara pakai Sensei JLPT** — [▶ Putar tur] (jalan langsung di halaman Pengaturan).
+- **Cara pakai Honix JLPT** — [▶ Putar tur] (jalan langsung di halaman Pengaturan).
 - **Ingatkan tiap bulan** — toggle, default nyala.
 
 ## Data

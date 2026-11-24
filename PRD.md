@@ -1,11 +1,11 @@
-# PRD — Sensei JLPT
+# PRD — Honix JLPT
 Product Requirements Document · Last updated: 20 May 2026
 
 ---
 
 ## Overview
 
-Sensei JLPT adalah aplikasi web untuk belajar JLPT (Japanese-Language Proficiency Test) dengan bantuan AI. User bisa upload/foto soal Jepang, dapat pembahasan lengkap, kelola kotoba pribadi (kamus), latihan via lembar tugas, dan lacak progress belajar.
+Honix JLPT adalah aplikasi web untuk belajar JLPT (Japanese-Language Proficiency Test) dengan bantuan AI. User bisa upload/foto soal Jepang, dapat pembahasan lengkap, kelola kotoba pribadi (kamus), latihan via lembar tugas, dan lacak progress belajar.
 
 Stack: Next.js (App Router) + Supabase + Claude AI + Vercel.
 

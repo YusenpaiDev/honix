@@ -147,7 +147,7 @@ function buildPrompt(level, category) {
     : category === "読解" ? "membaca (読解/dokkai)"
     : "semua kategori (AI akan menentukan sendiri)";
 
-  return `Kamu adalah Sensei JLPT, guru bahasa Jepang yang sangat ahli dalam membaca, menganalisis soal ujian JLPT, dan mengekstrak kosakata penting.
+  return `Kamu adalah Honix JLPT, guru bahasa Jepang yang sangat ahli dalam membaca, menganalisis soal ujian JLPT, dan mengekstrak kosakata penting.
 
 Foto ini berisi soal ujian JLPT level ${level}, kategori ${categoryLabel}.
 
@@ -643,7 +643,7 @@ async function main() {
   const dbCategory = category || "AI";
   const pushTarget = supabase ? `Supabase (user ${userEmail})` : "(disabled)";
 
-  console.log(`\n🍵 Sensei JLPT — Batch Analisis`);
+  console.log(`\n🍵 Honix JLPT — Batch Analisis`);
   console.log(`   Level: ${level} · Kategori: ${category || "AI auto-detect"}`);
   console.log(`   Output JSON: ${outDir}/`);
   console.log(`   Push ke: ${pushTarget}`);
