@@ -1,5 +1,5 @@
 -- ============================================================
--- Sensei JLPT — Database Schema
+-- Honix JLPT — Database Schema
 -- Paste ini di Supabase SQL Editor → Run
 -- ============================================================
 

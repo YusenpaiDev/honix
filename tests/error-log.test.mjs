@@ -17,5 +17,5 @@ test("abaikanErrorBrowser: ekstensi, Script error, ResizeObserver, abort", () =>
   assert.equal(abaikanErrorBrowser("Script error."), true);
   assert.equal(abaikanErrorBrowser("ResizeObserver loop completed with undelivered notifications."), true);
   assert.equal(abaikanErrorBrowser("AbortError: signal is aborted"), true);
-  assert.equal(abaikanErrorBrowser("TypeError: Cannot read properties of undefined", "https://jlpt-solver.vercel.app/_next/x.js"), false);
+  assert.equal(abaikanErrorBrowser("TypeError: Cannot read properties of undefined", "https://www.honixjlpt.com/_next/x.js"), false);
 });
