@@ -261,6 +261,7 @@ body:not(.testi) #testi{display:none}
 .ft ul a,.ft ul span{display:inline-flex;align-items:center;gap:8px;min-height:36px;font-size:14px;color:var(--muted)}
 .ft ul a:hover{color:var(--text)}
 .ft ul span{color:var(--dim)}.ft ul .prep{min-height:0;font-size:11px;color:var(--info-t)}.ft ul .dc{display:flex;flex-wrap:wrap;align-items:center;gap:8px;min-height:36px}
+.ft-id{padding-top:22px;padding-bottom:6px;border-top:1px solid var(--line);font-size:12.5px;line-height:1.65;color:var(--dim)}.ft-id b{color:var(--muted);font-weight:600}.ft-id a{color:var(--muted)}.ft-id+.ft-b{border-top:0;padding-top:10px}
 .ft-b{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;padding-top:24px;padding-bottom:32px;border-top:1px solid var(--line);font-size:12.5px;color:var(--dim)}
 /* sticky mobile cta */
 .mcta{display:none}

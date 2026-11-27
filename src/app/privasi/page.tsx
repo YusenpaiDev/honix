@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 const BAGIAN: Bagian[] = [
   {
     id: "pengelola", judul: "Siapa kami",
-    isi: <p>Honix JLPT adalah aplikasi web latihan JLPT. Pembayaran diproses atas nama merchant <b>WILDbyZ</b>. Kebijakan ini menjelaskan data apa yang kami simpan saat kamu memakai Honix JLPT dan apa yang kami lakukan dengannya.</p>,
+    isi: <p>Honix JLPT adalah aplikasi web latihan JLPT. Pembayaran diproses atas nama merchant <b>HonixJLPT</b> (Yusuf Nashir Syarifuddin). Kebijakan ini menjelaskan data apa yang kami simpan saat kamu memakai Honix JLPT dan apa yang kami lakukan dengannya.</p>,
   },
   {
     id: "data", judul: "Data yang kami simpan",
